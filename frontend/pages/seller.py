@@ -56,28 +56,37 @@ def render():
                 else:st.error(msg)
     if section=="我的商品":
         xs=user_listings(uid)
+        show_images=st.checkbox("顯示圖片",value=True,key="seller_show_images")
         if not xs:st.info("目前沒有商品。")
         for x in xs:
             imgs=x.get("images") or []
             status_label={"draft":"草稿","active":"已上架","closed":"已下架"}.get(x["status"],x["status"])
             with st.container(border=True):
-                cimg,cinfo=st.columns([1,2])
-                with cimg:
-                    if imgs:
-                        from backend.database import PROJECT_ROOT
-                        cover=PROJECT_ROOT/imgs[0]["file_path"]
-                        if cover.exists():st.image(str(cover),use_container_width=True)
-                        else:st.caption("封面圖片暫時無法顯示")
-                    else:
-                        st.caption("尚未上傳封面圖片")
-                with cinfo:
-                    st.markdown(f'### {x["title"]}')
-                    st.markdown(f'**NT$ {x["price"]:,}**')
+                if show_images:
+                    cimg,cinfo=st.columns([1,2])
+                    with cimg:
+                        if imgs:
+                            from backend.database import PROJECT_ROOT
+                            cover=PROJECT_ROOT/imgs[0]["file_path"]
+                            if cover.exists():st.image(str(cover),use_container_width=True)
+                            else:st.caption("封面圖片暫時無法顯示")
+                        else:
+                            st.caption("尚未上傳封面圖片")
+                    with cinfo:
+                        st.markdown(f'### {x["title"]}')
+                        st.markdown(f'**NT$ {x["price"]:,}**')
+                        type_label="車輛商品" if x.get("product_type","vehicle")=="vehicle" else "常規商品"
+                        st.caption(f'商品 #{x["id"]}｜{type_label}｜狀態：{status_label}｜已扣流量：{x["traffic_cost"]}')
+                        if x.get("product_type","vehicle")=="vehicle":st.write(f'里程：**{x["mileage"]:,} km**')
+                        if x.get("summary"):st.write(x["summary"])
+                        st.caption(f'賣家：{x.get("seller_name","")}｜{x.get("seller_email","")}｜{x.get("seller_phone","")}')
+                        if x["status"]=="active" and x.get("expires_at"):st.caption(f'預計到期：{x["expires_at"]}')
+                else:
                     type_label="車輛商品" if x.get("product_type","vehicle")=="vehicle" else "常規商品"
+                    st.markdown(f'### {x["title"]}　　NT$ {x["price"]:,}')
                     st.caption(f'商品 #{x["id"]}｜{type_label}｜狀態：{status_label}｜已扣流量：{x["traffic_cost"]}')
                     if x.get("product_type","vehicle")=="vehicle":st.write(f'里程：**{x["mileage"]:,} km**')
                     if x.get("summary"):st.write(x["summary"])
-                    st.caption(f'賣家：{x.get("seller_name","")}｜{x.get("seller_email","")}｜{x.get("seller_phone","")}')
                     if x["status"]=="active" and x.get("expires_at"):st.caption(f'預計到期：{x["expires_at"]}')
                 with st.expander("管理商品",expanded=False):
                     st.markdown(f'#### {x["title"]}　NT$ {x["price"]:,}')
