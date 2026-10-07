@@ -1,11 +1,16 @@
 import streamlit as st
 from backend.services.listing_service import create_draft,user_listings,update_draft,publish,publication_cost,delete_draft,unlist_refund_preview,unlist
 from backend.services.image_service import add_uploaded_images,delete_image,move_image
-def _data(prefix="",values=None):
+def _data(prefix="",values=None,product_type_override=None,show_type=True):
     v=values or {}
     types=["車輛商品","常規商品"];type0="常規商品" if v.get("product_type")=="general" else "車輛商品"
-    type_label=st.selectbox("商品類型",types,index=types.index(type0),key=f"{prefix}product_type")
-    product_type="general" if type_label=="常規商品" else "vehicle"
+    if product_type_override is not None:
+        product_type=product_type_override
+    elif show_type:
+        type_label=st.selectbox("商品類型",types,index=types.index(type0),key=f"{prefix}product_type")
+        product_type="general" if type_label=="常規商品" else "vehicle"
+    else:
+        product_type=v.get("product_type","vehicle")
     title=st.text_input("商品名稱",value=v.get("title",""),key=f"{prefix}title")
     price=st.number_input("價格",min_value=0,step=1000,value=int(v.get("price",0)),key=f"{prefix}price")
     summary=st.text_input("商品卡簡述",value=v.get("summary",""),key=f"{prefix}summary")
@@ -37,8 +42,11 @@ def render():
         (st.success if flash[0]=="success" else st.error)(flash[1])
     tab1,tab2=st.tabs(["建立商品","我的商品"])
     with tab1:
+        new_type_label=st.selectbox("商品類型",["車輛商品","常規商品"],key="new_product_type_live")
+        new_product_type="general" if new_type_label=="常規商品" else "vehicle"
+        if new_product_type=="general":st.caption("常規商品模式：車輛專屬欄位已隱藏。")
         with st.form("new_listing"):
-            data=_data("new_")
+            data=_data("new_",product_type_override=new_product_type,show_type=False)
             submit=st.form_submit_button("儲存草稿",use_container_width=True)
             if submit:
                 lid,msg=create_draft(uid,data)
@@ -96,8 +104,13 @@ def render():
                         cost=publication_cost(x["id"])
                         st.info(f'正式上架預計需要 {cost} 流量；目前餘額 {st.session_state.user["traffic_balance"]}。')
                         with st.expander("重新載入／修改草稿"):
+                            edit_types=["車輛商品","常規商品"]
+                            edit_default="常規商品" if x.get("product_type")=="general" else "車輛商品"
+                            edit_type_label=st.selectbox("商品類型",edit_types,index=edit_types.index(edit_default),key=f'edit_type_live_{x["id"]}')
+                            edit_product_type="general" if edit_type_label=="常規商品" else "vehicle"
+                            if edit_product_type=="general":st.caption("常規商品模式：車輛專屬欄位已隱藏。")
                             with st.form(f'edit_{x["id"]}'):
-                                data=_data(f'edit_{x["id"]}_',x)
+                                data=_data(f'edit_{x["id"]}_',x,product_type_override=edit_product_type,show_type=False)
                                 if st.form_submit_button("儲存修改",use_container_width=True):
                                     ok,msg=update_draft(uid,x["id"],data)
                                     st.session_state.seller_flash=("success" if ok else "error",msg);st.rerun()

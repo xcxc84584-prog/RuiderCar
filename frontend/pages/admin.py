@@ -1,5 +1,5 @@
 import streamlit as st
-from backend.services.admin_service import settings,save_setting,users_for_admin,blacklist_user,unblacklist_user
+from backend.services.admin_service import settings,save_setting,users_for_admin,blacklist_user,unblacklist_user,permanently_delete_user
 from backend.services.message_service import admin_messages,reply_admin,set_admin_message_status
 from backend.services.traffic_service import pending,approve,reject
 from backend.services.backup_service import make_backup
@@ -42,6 +42,14 @@ def render():
                         if ok:st.rerun()
                 else:
                     st.info("管理員帳號不可加入黑名單。")
+                if u["role"]!="admin":
+                    st.divider()
+                    st.error("危險操作：徹底刪除會移除此帳號及其平台關聯資料，無法復原。")
+                    confirm=st.checkbox("我確認要永久刪除此帳號及相關資料",key=f'permadelete_confirm_{u["id"]}')
+                    if st.button("徹底刪除帳號",key=f'permadelete_{u["id"]}',type="primary",use_container_width=True,disabled=not confirm):
+                        ok,msg=permanently_delete_user(st.session_state.user["id"],u["id"])
+                        (st.success if ok else st.error)(msg)
+                        if ok:st.rerun()
     with tabs[2]:
         rows=admin_messages()
         if not rows:st.info("目前沒有管理員信件。")
