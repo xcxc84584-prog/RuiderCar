@@ -16,11 +16,10 @@ DEFAULTS={
 }
 def seed_settings():
     with SessionLocal() as db:
-        existing=set(db.scalars(select(SystemSetting.key)).all())
-        missing=[SystemSetting(key=k,value=v) for k,v in DEFAULTS.items() if k not in existing]
-        if missing:
-            db.add_all(missing)
-            db.commit()
+        existing={x.key for x in db.scalars(select(SystemSetting)).all()}
+        for k,v in DEFAULTS.items():
+            if k not in existing:db.add(SystemSetting(key=k,value=v))
+        db.commit()
 @st.cache_data(ttl=60,show_spinner=False)
 def settings():
     with SessionLocal() as db:

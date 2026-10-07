@@ -2,7 +2,7 @@ from datetime import datetime,timedelta
 import math
 from sqlalchemy import select
 from backend.database import SessionLocal
-from backend.models.entities import Listing,ListingImage,User,SystemSetting,TrafficTransaction
+from backend.models.entities import Listing,ListingImage,Appointment,Message,User,SystemSetting,TrafficTransaction
 def _setting(db,key,default):
     x=db.get(SystemSetting,key);return float(x.value) if x else default
 def list_public(search=""):
@@ -101,9 +101,13 @@ def unlist(uid,lid):
         x.listing_time_fee=0
         db.commit()
         return True,f"商品已下架，退還 {refund} 流量；商品已回到草稿",refund
+
 def delete_draft(uid,lid):
     import shutil
+    import logging
     from backend.database import PROJECT_ROOT
+    logger=logging.getLogger(__name__)
+    paths=[]
     with SessionLocal() as db:
         try:
             x=db.get(Listing,lid)
@@ -112,21 +116,25 @@ def delete_draft(uid,lid):
             imgs=db.scalars(select(ListingImage).where(ListingImage.listing_id==lid)).all()
             paths=[PROJECT_ROOT/i.file_path for i in imgs]
             db.query(ListingImage).filter(ListingImage.listing_id==lid).delete(synchronize_session=False)
+            db.query(Appointment).filter(Appointment.listing_id==lid).delete(synchronize_session=False)
+            db.query(Message).filter(Message.listing_id==lid).update({Message.listing_id:None},synchronize_session=False)
             db.flush()
             db.delete(x)
             db.commit()
-        except Exception as e:
+        except Exception:
             db.rollback()
-            print(f"[delete_draft] listing_id={lid} error={type(e).__name__}: {e}")
-            return False,"草稿永久刪除失敗"
+            logger.exception("[delete_draft] listing_id=%s failed",lid)
+            return False,"草稿永久刪除失敗，請查看系統日誌"
     for path in paths:
         try:
             if path.exists():path.unlink()
-        except OSError:pass
+        except OSError:
+            logger.warning("[delete_draft] unable to remove file: %s",path,exc_info=True)
     folder=PROJECT_ROOT/"storage"/"uploads"/"listings"/str(lid)
     try:
         if folder.exists():shutil.rmtree(folder)
-    except OSError:pass
+    except OSError:
+        logger.warning("[delete_draft] unable to remove folder: %s",folder,exc_info=True)
     return True,"草稿已永久刪除"
 def row_to_dict(x):
     d={c.name:getattr(x,c.name) for c in x.__table__.columns}
