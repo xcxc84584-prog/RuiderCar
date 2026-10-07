@@ -97,8 +97,19 @@ def render():
         holder=st.text_input("收款戶名",value=s.get("bank_holder",""))
         account=st.text_input("收款銀行帳號",value=s.get("transfer_account",""))
         transfer_note=st.text_area("流量購買/轉帳說明",value=s.get("transfer_note",""))
+        st.divider()
+        st.subheader("首頁標頭設定")
+        hero_title=st.text_input("標題內容",value=s.get("home_hero_title","RuiderCar 商品交易平台"))
+        hero_subtitle=st.text_area("副標題內容",value=s.get("home_hero_subtitle",""))
+        hc1,hc2=st.columns(2)
+        hero_width=hc1.number_input("標頭寬度（%）",min_value=40,max_value=100,value=int(s.get("home_hero_width","100")),step=1)
+        hero_height=hc2.number_input("標頭高度（px）",min_value=80,max_value=400,value=int(s.get("home_hero_height","140")),step=10)
+        hc3,hc4=st.columns(2)
+        hero_title_size=hc3.number_input("標題字號（px）",min_value=16,max_value=64,value=int(s.get("home_hero_title_size","26")),step=1)
+        hero_subtitle_size=hc4.number_input("副標題字號（px）",min_value=10,max_value=32,value=int(s.get("home_hero_subtitle_size","16")),step=1)
+        st.caption("寬度以首頁內容區百分比設定；高度與字號使用 px。")
         if st.button("儲存系統設定",use_container_width=True):
-            values={"initial_traffic":initial,"traffic_max":traffic_max,"traffic_min":traffic_min,"traffic_per_100k_month":traffic_per,"admin_email":email,"bank_name":bank,"bank_holder":holder,"transfer_account":account,"transfer_note":transfer_note}
+            values={"initial_traffic":initial,"traffic_max":traffic_max,"traffic_min":traffic_min,"traffic_per_100k_month":traffic_per,"admin_email":email,"bank_name":bank,"bank_holder":holder,"transfer_account":account,"transfer_note":transfer_note,"home_hero_title":hero_title,"home_hero_subtitle":hero_subtitle,"home_hero_width":hero_width,"home_hero_height":hero_height,"home_hero_title_size":hero_title_size,"home_hero_subtitle_size":hero_subtitle_size}
             for k,v in values.items():save_setting(k,v)
             st.success("設定已儲存")
     with tabs[5]:

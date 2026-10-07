@@ -14,7 +14,13 @@ DEFAULTS={
     "bank_name":"",
     "bank_holder":"",
     "transfer_account":"",
-    "transfer_note":"轉帳後請於流量中心提交金額與匯款帳號末五碼，待管理員審核。"
+    "transfer_note":"轉帳後請於流量中心提交金額與匯款帳號末五碼，待管理員審核。",
+    "home_hero_title":"RuiderCar 商品交易平台",
+    "home_hero_subtitle":"瀏覽車輛與常規商品、預約或聯絡賣家。平台不代替買賣雙方完成線下交易。",
+    "home_hero_width":"100",
+    "home_hero_height":"140",
+    "home_hero_title_size":"26",
+    "home_hero_subtitle_size":"16"
 }
 def seed_settings():
     with SessionLocal() as db:
