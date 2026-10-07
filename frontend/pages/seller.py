@@ -40,8 +40,10 @@ def render():
     flash=st.session_state.pop("seller_flash",None)
     if flash:
         (st.success if flash[0]=="success" else st.error)(flash[1])
-    tab1,tab2=st.tabs(["建立商品","我的商品"])
-    with tab1:
+    if "seller_section" not in st.session_state:
+        st.session_state.seller_section="建立商品"
+    section=st.radio("商品管理",["建立商品","我的商品"],horizontal=True,key="seller_section",label_visibility="collapsed")
+    if section=="建立商品":
         new_type_label=st.selectbox("商品類型",["車輛商品","常規商品"],key="new_product_type_live")
         new_product_type="general" if new_type_label=="常規商品" else "vehicle"
         if new_product_type=="general":st.caption("常規商品模式：車輛專屬欄位已隱藏。")

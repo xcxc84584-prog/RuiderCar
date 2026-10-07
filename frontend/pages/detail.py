@@ -50,11 +50,11 @@ def render():
             if ok:st.session_state.page="首頁";st.rerun()
     u=st.session_state.get("user")
     if not u:
-        st.info("登入後即可預約看車或聯絡賣家。")
+        st.info("登入後即可預約查看商品或聯絡賣家。")
     elif u["id"]==x["seller_id"]:
         st.info("這是你自己的商品。")
     else:
-        st.subheader("預約看車")
+        st.subheader("預約查看商品")
         d=st.date_input("日期",min_value=datetime.now().date())
         t=st.time_input("時間",value=(datetime.now()+timedelta(hours=2)).time().replace(second=0,microsecond=0))
         note=st.text_input("備註")
