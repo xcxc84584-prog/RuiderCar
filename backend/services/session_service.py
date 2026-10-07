@@ -25,7 +25,7 @@ def restore_login_session(token):
             if s:db.delete(s);db.commit()
             return None
         u=db.get(User,s.user_id)
-        if not u or u.suspended:return None
+        if not u or u.suspended or u.blacklisted:return None
         return {"id":u.id,"name":u.name,"email":u.email,"role":u.role,"traffic_balance":u.traffic_balance}
 def revoke_login_session(token):
     if not token:return

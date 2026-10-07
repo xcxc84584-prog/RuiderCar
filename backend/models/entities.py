@@ -14,6 +14,9 @@ class User(Base):
     traffic_balance:Mapped[int]=mapped_column(Integer,default=0)
     verified:Mapped[bool]=mapped_column(Boolean,default=True)
     suspended:Mapped[bool]=mapped_column(Boolean,default=False)
+    blacklisted:Mapped[bool]=mapped_column(Boolean,default=False)
+    blacklist_reason:Mapped[str]=mapped_column(Text,default="")
+    blacklisted_at:Mapped[datetime|None]=mapped_column(DateTime,nullable=True)
     created_at:Mapped[datetime]=mapped_column(DateTime,default=datetime.utcnow)
 
 class Listing(Base):

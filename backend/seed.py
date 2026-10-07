@@ -1,7 +1,7 @@
 from sqlalchemy import select
 from backend.database import SessionLocal,init_db
 from backend.models.entities import User
-from backend.services.admin_service import seed_settings
+from backend.services.admin_service import seed_settings,ensure_blacklist_schema
 from backend.utils.password import hash_password
 from backend.cloud_config import secret
 

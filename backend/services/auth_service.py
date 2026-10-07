@@ -39,7 +39,7 @@ def register(name,email,phone,password):
 def login(email,password):
     with SessionLocal() as db:
         u=db.scalar(select(User).where(User.email==email.strip().lower()))
-        if not u or u.suspended:
+        if not u or u.suspended or u.blacklisted:
             return None
         if not verify_password(password,u.password_hash):
             return None

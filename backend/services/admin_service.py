@@ -1,7 +1,9 @@
-from sqlalchemy import select
+from sqlalchemy import select,text
 import streamlit as st
 from backend.database import SessionLocal
-from backend.models.entities import SystemSetting
+from backend.models.entities import SystemSetting,User,Listing
+from backend.models.session import LoginSession
+from datetime import datetime
 
 DEFAULTS={
     "initial_traffic":"1000",
@@ -32,3 +34,49 @@ def save_setting(key,value):
         else:db.add(SystemSetting(key=key,value=str(value)))
         db.commit()
     settings.clear()
+
+def ensure_blacklist_schema():
+    with SessionLocal() as db:
+        dialect=db.bind.dialect.name
+        if dialect=="postgresql":
+            db.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS blacklisted BOOLEAN NOT NULL DEFAULT FALSE"))
+            db.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS blacklist_reason TEXT NOT NULL DEFAULT ''"))
+            db.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS blacklisted_at TIMESTAMP NULL"))
+        elif dialect=="sqlite":
+            cols={r[1] for r in db.execute(text("PRAGMA table_info(users)")).all()}
+            if "blacklisted" not in cols:db.execute(text("ALTER TABLE users ADD COLUMN blacklisted BOOLEAN NOT NULL DEFAULT 0"))
+            if "blacklist_reason" not in cols:db.execute(text("ALTER TABLE users ADD COLUMN blacklist_reason TEXT NOT NULL DEFAULT ''"))
+            if "blacklisted_at" not in cols:db.execute(text("ALTER TABLE users ADD COLUMN blacklisted_at DATETIME NULL"))
+        db.commit()
+def users_for_admin():
+    with SessionLocal() as db:
+        xs=db.scalars(select(User).order_by(User.created_at.desc())).all()
+        return [{"id":u.id,"name":u.name,"email":u.email,"phone":u.phone,"role":u.role,"traffic_balance":u.traffic_balance,"blacklisted":bool(u.blacklisted),"blacklist_reason":u.blacklist_reason or "","blacklisted_at":u.blacklisted_at,"created_at":u.created_at} for u in xs]
+def blacklist_user(uid,reason):
+    reason=str(reason or "").strip()
+    if not reason:return False,"請填寫加入黑名單原因"
+    with SessionLocal() as db:
+        u=db.get(User,uid)
+        if not u:return False,"會員不存在"
+        if u.role=="admin":return False,"管理員帳號不可加入黑名單"
+        if u.blacklisted:return False,"此會員已在黑名單"
+        u.blacklisted=True
+        u.blacklist_reason=reason
+        u.blacklisted_at=datetime.utcnow()
+        u.suspended=True
+        db.query(LoginSession).filter(LoginSession.user_id==uid).delete(synchronize_session=False)
+        db.query(Listing).filter(Listing.seller_id==uid,Listing.status=="active").update({Listing.status:"draft",Listing.published_at:None,Listing.expires_at:None},synchronize_session=False)
+        db.commit()
+        return True,"已加入黑名單；登入工作階段已撤銷，公開商品已下架"
+def unblacklist_user(uid):
+    with SessionLocal() as db:
+        u=db.get(User,uid)
+        if not u:return False,"會員不存在"
+        if u.role=="admin":return False,"管理員帳號不使用黑名單功能"
+        if not u.blacklisted:return False,"此會員不在黑名單"
+        u.blacklisted=False
+        u.blacklist_reason=""
+        u.blacklisted_at=None
+        u.suspended=False
+        db.commit()
+        return True,"已解除黑名單，會員可重新登入"

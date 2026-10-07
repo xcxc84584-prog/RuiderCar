@@ -1,5 +1,5 @@
 import streamlit as st
-from backend.services.admin_service import settings,save_setting
+from backend.services.admin_service import settings,save_setting,users_for_admin,blacklist_user,unblacklist_user
 from backend.services.message_service import admin_messages,reply_admin,set_admin_message_status
 from backend.services.traffic_service import pending,approve,reject
 from backend.services.backup_service import make_backup
@@ -7,10 +7,32 @@ from backend.services.backup_service import make_backup
 def render():
     if st.session_state.user.get("role")!="admin":st.error("沒有管理員權限");return
     st.title("管理員後台")
-    tabs=st.tabs(["Dashboard","管理員信箱","流量審核","系統設定","資料備份"])
+    tabs=st.tabs(["Dashboard","會員／黑名單","管理員信箱","流量審核","系統設定","資料備份"])
     with tabs[0]:
         st.info("管理員後台。")
     with tabs[1]:
+        users=users_for_admin()
+        if not users:st.info("目前沒有會員。")
+        for u in users:
+            status="黑名單" if u["blacklisted"] else "正常"
+            with st.expander(f'#{u["id"]} [{status}] {u["name"]}｜{u["email"]}'):
+                st.caption(f'電話：{u["phone"]}｜角色：{u["role"]}｜流量：{u["traffic_balance"]}｜註冊：{u["created_at"]}')
+                if u["blacklisted"]:
+                    st.error(f'黑名單原因：{u["blacklist_reason"]}')
+                    st.caption(f'加入時間：{u["blacklisted_at"]}')
+                    if st.button("解除黑名單",key=f'unblack_{u["id"]}',use_container_width=True):
+                        ok,msg=unblacklist_user(u["id"])
+                        (st.success if ok else st.error)(msg)
+                        if ok:st.rerun()
+                elif u["role"]!="admin":
+                    reason=st.text_input("加入黑名單原因",key=f'black_reason_{u["id"]}',placeholder="例如：詐騙疑慮、違反平台規則")
+                    if st.button("加入黑名單",key=f'black_{u["id"]}',type="primary",use_container_width=True):
+                        ok,msg=blacklist_user(u["id"],reason)
+                        (st.success if ok else st.error)(msg)
+                        if ok:st.rerun()
+                else:
+                    st.info("管理員帳號不可加入黑名單。")
+    with tabs[2]:
         rows=admin_messages()
         if not rows:st.info("目前沒有管理員信件。")
         for m in rows:
@@ -28,7 +50,7 @@ def render():
                 if st.button("回覆並標記已回覆",key=f'rr{m["id"]}',type="primary",use_container_width=True):
                     if reply_admin(m["id"],r):st.rerun()
                     else:st.error("回覆內容不可為空")
-    with tabs[2]:
+    with tabs[3]:
         rows=pending()
         if not rows:st.info("目前沒有等待審核的流量購買申請。")
         for r in rows:
@@ -45,7 +67,7 @@ def render():
                     ok,msg=reject(r["id"])
                     (st.success if ok else st.error)(msg)
                     if ok:st.rerun()
-    with tabs[3]:
+    with tabs[4]:
         s=settings()
         initial=st.number_input("新會員初始流量",min_value=0,value=int(s.get("initial_traffic","1000")))
         traffic_max=st.number_input("單商品每年流量上限",min_value=1,value=int(s.get("traffic_max","100")))
@@ -61,7 +83,7 @@ def render():
             values={"initial_traffic":initial,"traffic_max":traffic_max,"traffic_min":traffic_min,"traffic_per_100k_month":traffic_per,"admin_email":email,"bank_name":bank,"bank_holder":holder,"transfer_account":account,"transfer_note":transfer_note}
             for k,v in values.items():save_setting(k,v)
             st.success("設定已儲存")
-    with tabs[4]:
+    with tabs[5]:
         st.warning("Cloud 正式環境請使用外部 PostgreSQL 與持久化物件儲存；本功能提供管理員離線備份。")
         name,data=make_backup()
         st.download_button("備份到本地",data=data,file_name=name,mime="application/zip",use_container_width=True)
