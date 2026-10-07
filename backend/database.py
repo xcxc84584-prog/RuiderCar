@@ -16,7 +16,7 @@ SessionLocal=sessionmaker(bind=engine,autoflush=False,autocommit=False)
 class Base(DeclarativeBase):
     pass
 def init_db():
-    from backend.models.entities import User,Listing,ListingImage,Appointment,Message,AdminMessage,TrafficTransaction,TrafficPurchaseRequest,SystemSetting,RegistrationRisk,PendingRegistration
+    from backend.models.entities import User,Listing,ListingImage,Appointment,Message,AdminMessage,TrafficTransaction,TrafficPurchaseRequest,SystemSetting,RegistrationRisk
     from backend.models.session import LoginSession
     from sqlalchemy import inspect,text
     Base.metadata.create_all(engine)

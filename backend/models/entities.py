@@ -22,17 +22,6 @@ class User(Base):
     blacklisted_at:Mapped[datetime|None]=mapped_column(DateTime,nullable=True)
     created_at:Mapped[datetime]=mapped_column(DateTime,default=datetime.utcnow)
 
-class PendingRegistration(Base):
-    __tablename__="pending_registrations"
-    id:Mapped[int]=mapped_column(primary_key=True)
-    name:Mapped[str]=mapped_column(String(80))
-    email:Mapped[str]=mapped_column(String(180),unique=True,index=True)
-    phone:Mapped[str]=mapped_column(String(30),index=True)
-    password_hash:Mapped[str]=mapped_column(String(255))
-    verification_code_hash:Mapped[str]=mapped_column(String(64))
-    verification_expires_at:Mapped[datetime]=mapped_column(DateTime)
-    verification_sent_at:Mapped[datetime]=mapped_column(DateTime)
-    created_at:Mapped[datetime]=mapped_column(DateTime,default=datetime.utcnow)
 
 class Listing(Base):
     __tablename__="listings"
