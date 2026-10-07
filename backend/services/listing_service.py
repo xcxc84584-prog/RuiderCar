@@ -38,29 +38,33 @@ def update_draft(uid,lid,data):
         for k,v in data.items():
             if k in allowed:setattr(x,k,v)
         db.commit();return True,"草稿已更新"
+def _traffic_cost(db,x):
+    traffic_max=max(1,int(_setting(db,"traffic_max",100)))
+    traffic_min=max(1,int(_setting(db,"traffic_min",20)))
+    traffic_per=max(1,int(_setting(db,"traffic_per_100k_month",5)))
+    if traffic_min>traffic_max:traffic_min=traffic_max
+    price_units=max(1,math.ceil(int(x.price)/100000))
+    raw=price_units*max(1,int(x.months))*traffic_per
+    return min(traffic_max,max(traffic_min,raw))
 def publication_cost(lid):
     with SessionLocal() as db:
         x=db.get(Listing,lid)
         if not x:return None
-        coef=_setting(db,"category_coefficient",0.001)
-        minimum=int(_setting(db,"category_minimum",300))
-        return math.ceil(x.price*coef)+200*x.months+minimum
+        return _traffic_cost(db,x)
 def publish(uid,lid):
     with SessionLocal() as db:
         x=db.get(Listing,lid);u=db.get(User,uid)
         if not x or x.seller_id!=uid:return False,"商品不存在"
         if x.status=="active":return False,"商品已經上架，沒有重複扣除流量"
         if x.status!="draft":return False,f"目前狀態 {x.status} 無法上架"
-        coef=_setting(db,"category_coefficient",0.001)
-        minimum=int(_setting(db,"category_minimum",300))
-        cost=math.ceil(x.price*coef)+200*x.months+minimum
+        cost=_traffic_cost(db,x)
         if u.traffic_balance<cost:return False,f"流量不足：目前 {u.traffic_balance}，上架需要 {cost}，尚缺 {cost-u.traffic_balance}"
         before=u.traffic_balance;u.traffic_balance-=cost
         now=datetime.utcnow()
         x.traffic_cost=cost;x.status="active"
         x.published_at=now
         x.expires_at=now+timedelta(days=30*x.months)
-        x.listing_time_fee=200*x.months
+        x.listing_time_fee=max(0,cost-20)
         x.refunded_time_fee=0
         db.add(TrafficTransaction(user_id=uid,kind="上架扣除",delta=-cost,before_balance=before,after_balance=u.traffic_balance,reason=f"上架商品：{x.title}",reference_id=x.id))
         db.commit();return True,f"上架成功，扣除 {cost} 流量"
@@ -89,7 +93,7 @@ def unlist(uid,lid):
         if refund>0:
             u.traffic_balance+=refund
             x.refunded_time_fee=int(x.refunded_time_fee or 0)+refund
-            db.add(TrafficTransaction(user_id=uid,kind="下架退款",delta=refund,before_balance=before,after_balance=u.traffic_balance,reason=f"商品提前下架，退還未使用刊登時間流量：{x.title}",reference_id=x.id))
+            db.add(TrafficTransaction(user_id=uid,kind="下架退款",delta=refund,before_balance=before,after_balance=u.traffic_balance,reason=f"商品提前下架，按剩餘期間退還可退款流量（最低流量不退款）：{x.title}",reference_id=x.id))
         x.status="draft"
         x.published_at=None
         x.expires_at=None

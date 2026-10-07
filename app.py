@@ -13,7 +13,7 @@ with st.sidebar:
     if u:
         st.success(f'登入：{u["name"]}')
         st.caption(f'流量：{u["traffic_balance"]}')
-        pages=["首頁","我的預約","信件區","送信給管理員","流量中心","賣出／商品管理"]
+        pages=["首頁","我的預約","信件區","送信給管理員","流量中心","賣出／商品管理","帳號設定"]
         if u.get("role")=="admin":pages.append("管理員後台")
         for p in pages:
             if st.button(p,use_container_width=True,key=f"nav_{p}"):st.session_state.page=p;st.rerun()

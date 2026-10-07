@@ -106,7 +106,7 @@ def render():
                     refund=unlist_refund_preview(uid,x["id"])
                     if x.get("published_at"):st.caption(f'上架時間：{x["published_at"]}')
                     if x.get("expires_at"):st.caption(f'預計到期：{x["expires_at"]}')
-                    st.info(f"目前下架預計退還：{refund or 0} 流量（僅退未使用刊登時間費；價格係數費與類別低消不退）")
+                    st.info(f"目前下架預計退還：{refund or 0} 流量（按剩餘上架期間計算；最低流量不退款）")
                     confirm_key=f'confirm_unlist_{x["id"]}'
                     if not st.session_state.get(confirm_key,False):
                         if st.button("下架商品",key=f'unlist_{x["id"]}',use_container_width=True):

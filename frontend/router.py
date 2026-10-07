@@ -6,6 +6,7 @@ def route():
     elif p=="商品詳細":detail.render()
     elif p=="登入":account.render_login()
     elif p=="註冊":account.render_register()
+    elif p=="帳號設定":account.render_settings()
     elif p=="我的預約":member.reservations()
     elif p=="信件區":member.mailbox()
     elif p=="送信給管理員":member.admin_contact()

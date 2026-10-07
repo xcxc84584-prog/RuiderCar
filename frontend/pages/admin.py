@@ -35,15 +35,17 @@ def render():
     with tabs[3]:
         s=settings()
         initial=st.number_input("新會員初始流量",min_value=0,value=int(s.get("initial_traffic","1000")))
-        coef=st.number_input("商品價格係數",min_value=0.0,value=float(s.get("category_coefficient","0.001")),format="%.4f")
-        minimum=st.number_input("商品類別低消",min_value=0,value=int(s.get("category_minimum","300")))
+        traffic_max=st.number_input("單商品每年流量上限",min_value=1,value=int(s.get("traffic_max","100")))
+        traffic_min=st.number_input("單商品最低流量",min_value=1,value=int(s.get("traffic_min","20")))
+        traffic_per=st.number_input("每 10 萬元／每月流量",min_value=1,value=int(s.get("traffic_per_100k_month","5")))
+        st.caption("計算：ceil(商品價格 ÷ 100,000) × 上架月數 × 每10萬元每月流量，再套用最低與最高限制。1 流量 = NT$1。")
         email=st.text_input("管理員信箱",value=s.get("admin_email",""))
         bank=st.text_input("收款銀行",value=s.get("bank_name",""))
         holder=st.text_input("收款戶名",value=s.get("bank_holder",""))
         account=st.text_input("收款銀行帳號",value=s.get("transfer_account",""))
         transfer_note=st.text_area("流量購買/轉帳說明",value=s.get("transfer_note",""))
         if st.button("儲存系統設定",use_container_width=True):
-            values={"initial_traffic":initial,"category_coefficient":coef,"category_minimum":minimum,"admin_email":email,"bank_name":bank,"bank_holder":holder,"transfer_account":account,"transfer_note":transfer_note}
+            values={"initial_traffic":initial,"traffic_max":traffic_max,"traffic_min":traffic_min,"traffic_per_100k_month":traffic_per,"admin_email":email,"bank_name":bank,"bank_holder":holder,"transfer_account":account,"transfer_note":transfer_note}
             for k,v in values.items():save_setting(k,v)
             st.success("設定已儲存")
     with tabs[4]:

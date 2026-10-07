@@ -4,8 +4,9 @@ from backend.models.entities import SystemSetting
 
 DEFAULTS={
     "initial_traffic":"1000",
-    "category_coefficient":"0.001",
-    "category_minimum":"300",
+    "traffic_max":"100",
+    "traffic_min":"20",
+    "traffic_per_100k_month":"5",
     "admin_email":"xcxc84584@gmail.com",
     "bank_name":"",
     "bank_holder":"",
