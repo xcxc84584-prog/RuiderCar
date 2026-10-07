@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 from backend.services.appointment_service import mine,seller_pending,set_status
 from backend.services.message_service import inbox,send_admin,set_message_status,quick_reply
-from backend.services.traffic_service import transactions,request_purchase
+from backend.services.traffic_service import transactions,request_purchase,purchase_requests
 from backend.services.admin_service import settings
 
 def reservations():
@@ -57,6 +57,12 @@ def traffic():
     st.caption("流量兌換：NT$1 = 1 流量；單次最低 NT$500。轉帳完成後請提交下方申請，由管理員審核。")
     st.subheader("流量紀錄")
     st.dataframe(pd.DataFrame(transactions(uid)),use_container_width=True,hide_index=True)
+    st.subheader("購買申請狀態")
+    requests=purchase_requests(uid)
+    if requests:
+        st.dataframe(pd.DataFrame(requests)[["id","amount","last5","status","created_at","note"]],use_container_width=True,hide_index=True)
+    else:
+        st.info("目前沒有流量購買申請。")
     st.subheader("購買流量")
     amt=st.number_input("轉帳金額",min_value=500,step=100)
     last5=st.text_input("匯款帳號末五碼",max_chars=5)

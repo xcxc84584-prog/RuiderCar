@@ -1,7 +1,7 @@
 import streamlit as st
 from backend.services.admin_service import settings,save_setting
 from backend.services.message_service import admin_messages,reply_admin,set_admin_message_status
-from backend.services.traffic_service import pending,approve
+from backend.services.traffic_service import pending,approve,reject
 from backend.services.backup_service import make_backup
 
 def render():
@@ -29,9 +29,22 @@ def render():
                     if reply_admin(m["id"],r):st.rerun()
                     else:st.error("回覆內容不可為空")
     with tabs[2]:
-        for r in pending():
-            st.write(f'申請 #{r["id"]}｜會員 {r["user_id"]}｜NT$ {r["amount"]}｜末五碼 {r["last5"]}')
-            if st.button("批准",key=f'ap{r["id"]}'):approve(r["id"]);st.rerun()
+        rows=pending()
+        if not rows:st.info("目前沒有等待審核的流量購買申請。")
+        for r in rows:
+            with st.container(border=True):
+                st.write(f'申請 #{r["id"]}｜會員 {r["user_id"]}｜NT$ {r["amount"]}｜末五碼 {r["last5"]}')
+                st.caption(f'申請時間：{r["created_at"]}')
+                if r.get("note"):st.write(f'備註：{r["note"]}')
+                c1,c2=st.columns(2)
+                if c1.button("批准",key=f'ap{r["id"]}',type="primary",use_container_width=True):
+                    ok,msg=approve(r["id"])
+                    (st.success if ok else st.error)(msg)
+                    if ok:st.rerun()
+                if c2.button("拒絕",key=f'rj{r["id"]}',use_container_width=True):
+                    ok,msg=reject(r["id"])
+                    (st.success if ok else st.error)(msg)
+                    if ok:st.rerun()
     with tabs[3]:
         s=settings()
         initial=st.number_input("新會員初始流量",min_value=0,value=int(s.get("initial_traffic","1000")))
