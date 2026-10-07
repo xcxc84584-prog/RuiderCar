@@ -101,20 +101,23 @@ def unlist(uid,lid):
         x.listing_time_fee=0
         db.commit()
         return True,f"商品已下架，退還 {refund} 流量；商品已回到草稿",refund
-
 def delete_draft(uid,lid):
     import shutil
-    from pathlib import Path
     from backend.database import PROJECT_ROOT
     with SessionLocal() as db:
-        x=db.get(Listing,lid)
-        if not x or x.seller_id!=uid:return False,"草稿不存在或沒有權限"
-        if x.status!="draft":return False,"只有草稿可以永久刪除"
-        imgs=db.scalars(select(ListingImage).where(ListingImage.listing_id==lid)).all()
-        paths=[PROJECT_ROOT/i.file_path for i in imgs]
-        for i in imgs:db.delete(i)
-        db.delete(x)
-        db.commit()
+        try:
+            x=db.get(Listing,lid)
+            if not x or x.seller_id!=uid:return False,"草稿不存在或沒有權限"
+            if x.status!="draft":return False,"只有草稿可以永久刪除"
+            imgs=db.scalars(select(ListingImage).where(ListingImage.listing_id==lid)).all()
+            paths=[PROJECT_ROOT/i.file_path for i in imgs]
+            db.query(ListingImage).filter(ListingImage.listing_id==lid).delete(synchronize_session=False)
+            db.flush()
+            db.delete(x)
+            db.commit()
+        except Exception:
+            db.rollback()
+            return False,"草稿永久刪除失敗"
     for path in paths:
         try:
             if path.exists():path.unlink()
@@ -124,7 +127,6 @@ def delete_draft(uid,lid):
         if folder.exists():shutil.rmtree(folder)
     except OSError:pass
     return True,"草稿已永久刪除"
-
 def row_to_dict(x):
     d={c.name:getattr(x,c.name) for c in x.__table__.columns}
     with SessionLocal() as db:
