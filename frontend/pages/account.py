@@ -1,5 +1,5 @@
 import streamlit as st
-from backend.services.auth_service import login,register
+from backend.services.auth_service import login,register,verify_email,resend_verification
 from frontend.auth_session import establish_browser_session
 def render_login():
     st.title("登入")
@@ -13,9 +13,19 @@ def render_login():
 def render_register():
     st.title("註冊")
     n=st.text_input("名稱");e=st.text_input("Email");ph=st.text_input("手機號碼");p=st.text_input("密碼",type="password")
-    if st.button("建立帳號",use_container_width=True):
-        if len(p)<8:st.error("密碼至少 8 碼");return
-        ok,msg=register(n,e,ph,p);st.success(msg) if ok else st.error(msg)
+    if st.button("建立帳號並寄送驗證碼",use_container_width=True):
+        ok,msg=register(n,e,ph,p);(st.success if ok else st.error)(msg)
+        if ok:st.session_state.verify_email=e.strip().lower()
+    st.divider()
+    st.subheader("Email 驗證")
+    ve=st.text_input("待驗證 Email",value=st.session_state.get("verify_email",e),key="verify_email_input")
+    code=st.text_input("6 位數驗證碼",max_chars=6,key="email_verify_code")
+    c1,c2=st.columns(2)
+    if c1.button("驗證 Email",use_container_width=True):
+        ok,msg=verify_email(ve,code);(st.success if ok else st.error)(msg)
+        if ok:st.session_state.verify_email=ve.strip().lower()
+    if c2.button("重新寄送驗證碼",use_container_width=True):
+        ok,msg=resend_verification(ve);(st.success if ok else st.error)(msg)
 
 def render_settings():
     from backend.services.account_service import close_account

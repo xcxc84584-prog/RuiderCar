@@ -13,6 +13,9 @@ class User(Base):
     role:Mapped[str]=mapped_column(String(20),default="member")
     traffic_balance:Mapped[int]=mapped_column(Integer,default=0)
     verified:Mapped[bool]=mapped_column(Boolean,default=True)
+    verification_code_hash:Mapped[str]=mapped_column(String(64),default="")
+    verification_expires_at:Mapped[datetime|None]=mapped_column(DateTime,nullable=True)
+    verification_sent_at:Mapped[datetime|None]=mapped_column(DateTime,nullable=True)
     suspended:Mapped[bool]=mapped_column(Boolean,default=False)
     blacklisted:Mapped[bool]=mapped_column(Boolean,default=False)
     blacklist_reason:Mapped[str]=mapped_column(Text,default="")
@@ -23,6 +26,7 @@ class Listing(Base):
     __tablename__="listings"
     id:Mapped[int]=mapped_column(primary_key=True)
     seller_id:Mapped[int]=mapped_column(ForeignKey("users.id"),index=True)
+    product_type:Mapped[str]=mapped_column(String(20),default="vehicle",index=True)
     title:Mapped[str]=mapped_column(String(150))
     price:Mapped[int]=mapped_column(Integer)
     summary:Mapped[str]=mapped_column(String(300),default="")

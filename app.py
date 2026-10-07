@@ -3,6 +3,7 @@ from backend.seed import seed
 from frontend.styles.theme import apply_theme
 from frontend.router import route
 from frontend.auth_session import restore_browser_session,logout_browser_session
+from backend.services.auth_service import fresh_user
 st.set_page_config(page_title="RuiderCar 車輛交易平台",page_icon="🚙",layout="wide",initial_sidebar_state="expanded")
 @st.cache_resource(show_spinner=False)
 def _bootstrap():
@@ -11,6 +12,10 @@ def _bootstrap():
 _bootstrap();apply_theme()
 if "page" not in st.session_state:st.session_state.page="首頁"
 restore_browser_session()
+if st.session_state.get("user"):
+    latest=fresh_user(st.session_state.user["id"])
+    if latest:st.session_state.user=latest
+    else:logout_browser_session()
 with st.sidebar:
     st.markdown("## 🚙 RuiderCar")
     u=st.session_state.get("user")

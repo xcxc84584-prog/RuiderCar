@@ -17,6 +17,7 @@ def reservations():
 
 def mailbox():
     uid=st.session_state.user["id"];st.title("信件區")
+    if st.button("重新整理信件狀態",key="refresh_mailbox"):st.rerun()
     rows=inbox(uid)
     if not rows:
         st.info("目前沒有信件。");return
@@ -46,6 +47,7 @@ def admin_contact():
 
 def traffic():
     uid=st.session_state.user["id"];st.title("流量中心")
+    if st.button("重新整理流量狀態",key="refresh_traffic"):st.rerun()
     s=settings()
     st.subheader("管理員收款帳戶")
     st.info(

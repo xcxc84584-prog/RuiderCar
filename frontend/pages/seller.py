@@ -3,29 +3,33 @@ from backend.services.listing_service import create_draft,user_listings,update_d
 from backend.services.image_service import add_uploaded_images,delete_image,move_image
 def _data(prefix="",values=None):
     v=values or {}
+    types=["車輛商品","常規商品"];type0="常規商品" if v.get("product_type")=="general" else "車輛商品"
+    type_label=st.selectbox("商品類型",types,index=types.index(type0),key=f"{prefix}product_type")
+    product_type="general" if type_label=="常規商品" else "vehicle"
     title=st.text_input("商品名稱",value=v.get("title",""),key=f"{prefix}title")
-    price=st.number_input("價格",min_value=0,step=10000,value=int(v.get("price",0)),key=f"{prefix}price")
+    price=st.number_input("價格",min_value=0,step=1000,value=int(v.get("price",0)),key=f"{prefix}price")
     summary=st.text_input("商品卡簡述",value=v.get("summary",""),key=f"{prefix}summary")
     description=st.text_area("詳細說明",value=v.get("description",""),key=f"{prefix}description")
-    c1,c2,c3=st.columns(3)
-    brand=c1.text_input("廠牌",value=v.get("brand",""),key=f"{prefix}brand")
-    model=c2.text_input("車型",value=v.get("model",""),key=f"{prefix}model")
-    year=c3.number_input("年式",2000,2035,int(v.get("year",2022)),key=f"{prefix}year")
-    c1,c2,c3=st.columns(3)
-    mileage=c1.number_input("里程 km",0,1000000,int(v.get("mileage",0)),key=f"{prefix}mileage")
-    fuels=["汽油","柴油","油電混合","插電式油電","純電動","其他"];fuel0=v.get("fuel","汽油");fuel=c2.selectbox("能源",fuels,index=fuels.index(fuel0) if fuel0 in fuels else 0,key=f"{prefix}fuel")
-    transs=["自排","手排","CVT","DCT","手自排","其他"];trans0=v.get("transmission","自排");trans=c3.selectbox("變速",transs,index=transs.index(trans0) if trans0 in transs else 0,key=f"{prefix}trans")
-    c1,c2=st.columns(2)
-    location=c1.text_input("所在地",value=v.get("location",""),key=f"{prefix}location")
-    bodies=["轎車","掀背車","旅行車","休旅車","跨界休旅","跑車","敞篷車","MPV","廂型車","皮卡","其他"];body0=v.get("body_type","轎車");body=c2.selectbox("車身型式",bodies,index=bodies.index(body0) if body0 in bodies else 0,key=f"{prefix}body")
-    color=st.text_input("顏色",value=v.get("color",""),key=f"{prefix}color")
-    meeting=st.text_input("預約看車地址",value=v.get("meeting_address",""),key=f"{prefix}meeting")
-    delivery=st.text_input("預計交車時間",value=v.get("delivery_time","成交後 3 日內"),key=f"{prefix}delivery")
+    brand=model=color="";year=2026;mileage=0;fuel="";trans="";body=""
+    if product_type=="vehicle":
+        c1,c2,c3=st.columns(3)
+        brand=c1.text_input("廠牌",value=v.get("brand",""),key=f"{prefix}brand")
+        model=c2.text_input("車型",value=v.get("model",""),key=f"{prefix}model")
+        year=c3.number_input("年式",2000,2035,int(v.get("year",2022)),key=f"{prefix}year")
+        c1,c2,c3=st.columns(3)
+        mileage=c1.number_input("里程 km",0,10000000,int(v.get("mileage",0)),key=f"{prefix}mileage")
+        fuels=["汽油","柴油","油電混合","插電式油電","純電動","其他"];fuel0=v.get("fuel","汽油");fuel=c2.selectbox("能源",fuels,index=fuels.index(fuel0) if fuel0 in fuels else 0,key=f"{prefix}fuel")
+        transs=["自排","手排","CVT","DCT","手自排","其他"];trans0=v.get("transmission","自排");trans=c3.selectbox("變速",transs,index=transs.index(trans0) if trans0 in transs else 0,key=f"{prefix}trans")
+        bodies=["轎車","掀背車","旅行車","休旅車","跨界休旅","跑車","敞篷車","MPV","廂型車","皮卡","其他"];body0=v.get("body_type","轎車")
+        c1,c2=st.columns(2);body=c1.selectbox("車身型式",bodies,index=bodies.index(body0) if body0 in bodies else 0,key=f"{prefix}body");color=c2.text_input("顏色",value=v.get("color",""),key=f"{prefix}color")
+    location=st.text_input("所在地",value=v.get("location",""),key=f"{prefix}location")
+    meeting=st.text_input("交易／看貨地址",value=v.get("meeting_address",""),key=f"{prefix}meeting")
+    delivery=st.text_input("預計交付時間",value=v.get("delivery_time","成交後 3 日內"),key=f"{prefix}delivery")
     opts=["現金","銀行轉帳","貸款","其他"];old=[x for x in str(v.get("payment_method","")).split("／") if x in opts]
     payment=st.multiselect("付款方式",opts,default=old,key=f"{prefix}payment")
-    loan=st.checkbox("接受貸款",value=bool(v.get("accepts_loan",False)),key=f"{prefix}loan")
+    loan=st.checkbox("接受貸款",value=bool(v.get("accepts_loan",False)),key=f"{prefix}loan") if product_type=="vehicle" else False
     month_opts=[1,2,3,6,12];m=int(v.get("months",1));months=st.selectbox("上架時長（月）",month_opts,index=month_opts.index(m) if m in month_opts else 0,key=f"{prefix}months")
-    return dict(title=title,price=int(price),summary=summary,description=description,brand=brand,model=model,year=int(year),mileage=int(mileage),fuel=fuel,transmission=trans,location=location,body_type=body,color=color,meeting_address=meeting,delivery_time=delivery,payment_method="／".join(payment),accepts_loan=loan,months=months)
+    return dict(product_type=product_type,title=title,price=int(price),summary=summary,description=description,brand=brand,model=model,year=int(year),mileage=int(mileage),fuel=fuel,transmission=trans,location=location,body_type=body,color=color,meeting_address=meeting,delivery_time=delivery,payment_method="／".join(payment),accepts_loan=loan,months=months)
 def render():
     uid=st.session_state.user["id"];st.title("賣出／商品管理")
     flash=st.session_state.pop("seller_flash",None)
@@ -59,7 +63,9 @@ def render():
                 with cinfo:
                     st.markdown(f'### {x["title"]}')
                     st.markdown(f'**NT$ {x["price"]:,}**')
-                    st.caption(f'商品 #{x["id"]}｜狀態：{status_label}｜已扣流量：{x["traffic_cost"]}')
+                    type_label="車輛商品" if x.get("product_type","vehicle")=="vehicle" else "常規商品"
+                    st.caption(f'商品 #{x["id"]}｜{type_label}｜狀態：{status_label}｜已扣流量：{x["traffic_cost"]}')
+                    if x.get("product_type","vehicle")=="vehicle":st.write(f'里程：**{x["mileage"]:,} km**')
                     if x.get("summary"):st.write(x["summary"])
                     st.caption(f'賣家：{x.get("seller_name","")}｜{x.get("seller_email","")}｜{x.get("seller_phone","")}')
                     if x["status"]=="active" and x.get("expires_at"):st.caption(f'預計到期：{x["expires_at"]}')
@@ -99,7 +105,6 @@ def render():
                         if c1.button("正式上架",key=f'pub{x["id"]}',use_container_width=True):
                             ok,msg=publish(uid,x["id"])
                             if ok:
-                                st.session_state.user["traffic_balance"]-=cost
                                 st.session_state.seller_flash=("success",msg);st.rerun()
                             else:
                                 st.error(msg)

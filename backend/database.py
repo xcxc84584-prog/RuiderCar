@@ -18,17 +18,27 @@ class Base(DeclarativeBase):
 def init_db():
     from backend.models.entities import User,Listing,ListingImage,Appointment,Message,AdminMessage,TrafficTransaction,TrafficPurchaseRequest,SystemSetting,RegistrationRisk
     from backend.models.session import LoginSession
+    from sqlalchemy import inspect,text
     Base.metadata.create_all(engine)
-    if DATABASE_URL.startswith("sqlite"):
-        from sqlalchemy import inspect,text
-        cols={c["name"] for c in inspect(engine).get_columns("listings")}
-        additions={
-            "published_at":"DATETIME",
-            "expires_at":"DATETIME",
-            "listing_time_fee":"INTEGER NOT NULL DEFAULT 0",
-            "refunded_time_fee":"INTEGER NOT NULL DEFAULT 0"
-        }
-        with engine.begin() as conn:
-            for name,ddl in additions.items():
-                if name not in cols:
-                    conn.execute(text(f"ALTER TABLE listings ADD COLUMN {name} {ddl}"))
+    dialect=engine.dialect.name
+    with engine.begin() as conn:
+        if dialect=="postgresql":
+            statements=[
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS blacklisted BOOLEAN NOT NULL DEFAULT FALSE",
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS blacklist_reason TEXT NOT NULL DEFAULT ''",
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS blacklisted_at TIMESTAMP NULL",
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS verification_code_hash VARCHAR(64) NOT NULL DEFAULT ''",
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS verification_expires_at TIMESTAMP NULL",
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS verification_sent_at TIMESTAMP NULL",
+                "ALTER TABLE listings ADD COLUMN IF NOT EXISTS product_type VARCHAR(20) NOT NULL DEFAULT 'vehicle'"
+            ]
+            for sql in statements:conn.execute(text(sql))
+        elif dialect=="sqlite":
+            tables={"users":{c["name"] for c in inspect(engine).get_columns("users")},"listings":{c["name"] for c in inspect(engine).get_columns("listings")}}
+            additions={
+                "users":{"blacklisted":"BOOLEAN NOT NULL DEFAULT 0","blacklist_reason":"TEXT NOT NULL DEFAULT ''","blacklisted_at":"DATETIME","verification_code_hash":"VARCHAR(64) NOT NULL DEFAULT ''","verification_expires_at":"DATETIME","verification_sent_at":"DATETIME"},
+                "listings":{"published_at":"DATETIME","expires_at":"DATETIME","listing_time_fee":"INTEGER NOT NULL DEFAULT 0","refunded_time_fee":"INTEGER NOT NULL DEFAULT 0","product_type":"VARCHAR(20) NOT NULL DEFAULT 'vehicle'"}
+            }
+            for table,cols in additions.items():
+                for name,ddl in cols.items():
+                    if name not in tables[table]:conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {name} {ddl}"))

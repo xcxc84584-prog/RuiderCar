@@ -5,9 +5,10 @@ from backend.database import SessionLocal
 from backend.models.entities import Listing,ListingImage,Appointment,Message,User,SystemSetting,TrafficTransaction
 def _setting(db,key,default):
     x=db.get(SystemSetting,key);return float(x.value) if x else default
-def list_public(search=""):
+def list_public(search="",vehicles_only=False):
     with SessionLocal() as db:
         q=select(Listing).where(Listing.status=="active").order_by(Listing.created_at.desc())
+        if vehicles_only:q=q.where(Listing.product_type=="vehicle")
         if search:q=q.where(Listing.title.contains(search))
         return [row_to_dict(x) for x in db.scalars(q).all()]
 def user_listings(uid):
@@ -19,8 +20,11 @@ def get_listing(lid):
 def _validate(data):
     if not str(data.get("title","")).strip():return False,"商品名稱不可空白"
     if int(data.get("price",0))<=0:return False,"價格必須大於 0"
-    if not str(data.get("brand","")).strip():return False,"廠牌不可空白"
-    if not str(data.get("model","")).strip():return False,"車型不可空白"
+    product_type=data.get("product_type","vehicle")
+    if product_type not in ("vehicle","general"):return False,"商品類型錯誤"
+    if product_type=="vehicle":
+        if not str(data.get("brand","")).strip():return False,"車輛商品的廠牌不可空白"
+        if not str(data.get("model","")).strip():return False,"車輛商品的車型不可空白"
     return True,""
 def create_draft(uid,data):
     ok,msg=_validate(data)
@@ -34,7 +38,7 @@ def update_draft(uid,lid,data):
         x=db.get(Listing,lid)
         if not x or x.seller_id!=uid:return False,"商品不存在"
         if x.status!="draft":return False,"只有草稿可以修改"
-        allowed={"title","price","summary","description","brand","model","year","mileage","fuel","transmission","location","body_type","color","meeting_address","delivery_time","payment_method","accepts_loan","months"}
+        allowed={"product_type","title","price","summary","description","brand","model","year","mileage","fuel","transmission","location","body_type","color","meeting_address","delivery_time","payment_method","accepts_loan","months"}
         for k,v in data.items():
             if k in allowed:setattr(x,k,v)
         db.commit();return True,"草稿已更新"
@@ -136,17 +140,39 @@ def delete_draft(uid,lid):
     except OSError:
         logger.warning("[delete_draft] unable to remove folder: %s",folder,exc_info=True)
     return True,"草稿已永久刪除"
-def admin_force_remove(admin_uid,lid):
+def admin_force_remove(admin_uid,lid,reason):
+    import shutil
+    import logging
+    from backend.database import PROJECT_ROOT
+    logger=logging.getLogger(__name__)
+    reason=str(reason or "").strip()
+    if not reason:return False,"請填寫強制移除原因"
+    paths=[]
     with SessionLocal() as db:
-        admin=db.get(User,admin_uid);x=db.get(Listing,lid)
-        if not admin or admin.role!="admin":return False,"沒有管理員權限"
-        if not x:return False,"商品不存在"
-        if x.status!="active":return False,"只有公開上架中的商品可以強制移除"
-        x.status="closed"
-        x.published_at=None
-        x.expires_at=None
-        db.commit()
-        return True,"商品已由管理員強制移除；未退還賣家流量，歷史資料已保留"
+        try:
+            admin=db.get(User,admin_uid);x=db.get(Listing,lid)
+            if not admin or admin.role!="admin":return False,"沒有管理員權限"
+            if not x:return False,"商品不存在"
+            seller_id=x.seller_id;title=x.title
+            imgs=db.scalars(select(ListingImage).where(ListingImage.listing_id==lid)).all()
+            paths=[PROJECT_ROOT/i.file_path for i in imgs]
+            db.add(Message(sender_id=admin_uid,receiver_id=seller_id,listing_id=None,subject="系統通知：商品已由管理員強制移除",body=f"您的商品 #{lid}「{title}」已由管理員強制移除。原因：{reason}。該商品已下架並永久刪除，不退還上架流量。",status="未讀"))
+            db.query(ListingImage).filter(ListingImage.listing_id==lid).delete(synchronize_session=False)
+            db.query(Appointment).filter(Appointment.listing_id==lid).delete(synchronize_session=False)
+            db.query(Message).filter(Message.listing_id==lid).update({Message.listing_id:None},synchronize_session=False)
+            db.flush();db.delete(x);db.commit()
+        except Exception:
+            db.rollback();logger.exception("[admin_force_remove] listing_id=%s failed",lid)
+            return False,"強制移除失敗，請查看系統日誌"
+    for path in paths:
+        try:
+            if path.exists():path.unlink()
+        except OSError:logger.warning("[admin_force_remove] unable to remove file: %s",path,exc_info=True)
+    folder=PROJECT_ROOT/"storage"/"uploads"/"listings"/str(lid)
+    try:
+        if folder.exists():shutil.rmtree(folder)
+    except OSError:logger.warning("[admin_force_remove] unable to remove folder: %s",folder,exc_info=True)
+    return True,"商品已強制下架並永久刪除，系統通知已寄到賣家站內信箱"
 def row_to_dict(x):
     d={c.name:getattr(x,c.name) for c in x.__table__.columns}
     with SessionLocal() as db:
