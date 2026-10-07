@@ -12,12 +12,22 @@ def render():
         st.info("管理員後台。")
     with tabs[1]:
         users=users_for_admin()
-        if not users:st.info("目前沒有會員。")
+        c1,c2=st.columns([3,1])
+        keyword=c1.text_input("搜尋會員",placeholder="輸入會員 ID、姓名、Email 或手機",key="admin_user_search").strip().lower()
+        show_deleted=c2.checkbox("顯示已註銷帳戶",value=False,key="admin_show_deleted")
+        if not show_deleted:
+            users=[u for u in users if not u["deleted"]]
+        if keyword:
+            users=[u for u in users if keyword in str(u["id"]).lower() or keyword in u["name"].lower() or keyword in u["email"].lower() or keyword in u["phone"].lower()]
+        st.caption(f"搜尋結果：{len(users)} 位")
+        if not users:st.info("沒有符合條件的會員。")
         for u in users:
-            status="黑名單" if u["blacklisted"] else "正常"
+            status="已註銷" if u["deleted"] else ("黑名單" if u["blacklisted"] else "正常")
             with st.expander(f'#{u["id"]} [{status}] {u["name"]}｜{u["email"]}'):
                 st.caption(f'電話：{u["phone"]}｜角色：{u["role"]}｜流量：{u["traffic_balance"]}｜註冊：{u["created_at"]}')
-                if u["blacklisted"]:
+                if u["deleted"]:
+                    st.info("此帳戶已註銷，僅保留歷史資料，不提供黑名單操作。")
+                elif u["blacklisted"]:
                     st.error(f'黑名單原因：{u["blacklist_reason"]}')
                     st.caption(f'加入時間：{u["blacklisted_at"]}')
                     if st.button("解除黑名單",key=f'unblack_{u["id"]}',use_container_width=True):

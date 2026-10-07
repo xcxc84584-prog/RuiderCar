@@ -51,7 +51,11 @@ def ensure_blacklist_schema():
 def users_for_admin():
     with SessionLocal() as db:
         xs=db.scalars(select(User).order_by(User.created_at.desc())).all()
-        return [{"id":u.id,"name":u.name,"email":u.email,"phone":u.phone,"role":u.role,"traffic_balance":u.traffic_balance,"blacklisted":bool(u.blacklisted),"blacklist_reason":u.blacklist_reason or "","blacklisted_at":u.blacklisted_at,"created_at":u.created_at} for u in xs]
+        out=[]
+        for u in xs:
+            deleted=(u.name=="已註銷會員" and u.email.startswith("deleted-") and u.email.endswith("@deleted.invalid"))
+            out.append({"id":u.id,"name":u.name,"email":u.email,"phone":u.phone,"role":u.role,"traffic_balance":u.traffic_balance,"blacklisted":bool(u.blacklisted),"blacklist_reason":u.blacklist_reason or "","blacklisted_at":u.blacklisted_at,"deleted":deleted,"created_at":u.created_at})
+        return out
 def blacklist_user(uid,reason):
     reason=str(reason or "").strip()
     if not reason:return False,"請填寫加入黑名單原因"
@@ -59,6 +63,7 @@ def blacklist_user(uid,reason):
         u=db.get(User,uid)
         if not u:return False,"會員不存在"
         if u.role=="admin":return False,"管理員帳號不可加入黑名單"
+        if u.name=="已註銷會員" and u.email.startswith("deleted-") and u.email.endswith("@deleted.invalid"):return False,"已註銷帳戶不可加入黑名單"
         if u.blacklisted:return False,"此會員已在黑名單"
         u.blacklisted=True
         u.blacklist_reason=reason
