@@ -11,11 +11,14 @@ def _controller():
 def _cookie_token():
     token=st.session_state.get("remember_cookie_token")
     if token:return token
-    try:
-        token=_controller().get(COOKIE_NAME)
-    except Exception:
-        token=None
-    if isinstance(token,dict):token=token.get("value")
+    token=None
+    controller=_controller()
+    for attempt in range(3):
+        try:token=controller.get(COOKIE_NAME)
+        except Exception:token=None
+        if isinstance(token,dict):token=token.get("value")
+        if token:break
+        if attempt<2:time.sleep(0.15)
     if token:st.session_state.remember_cookie_token=token
     return token
 def restore_browser_session():
@@ -41,9 +44,9 @@ def establish_browser_session(user,remember=False):
     st.session_state.remember_device=remember
     if remember:
         expiry=datetime.now()+timedelta(days=REMEMBER_DAYS)
-        _controller().set(COOKIE_NAME,{"value":token,"expiry_date":expiry.isoformat()})
+        _controller().set(COOKIE_NAME,token,path="/",expires=expiry,max_age=REMEMBER_DAYS*24*60*60,secure=True,same_site="lax")
         st.session_state.remember_cookie_token=token
-        time.sleep(0.35)
+        time.sleep(0.5)
 def logout_browser_session():
     token=st.session_state.get("auth_token") or _cookie_token()
     if token:revoke_login_session(token)

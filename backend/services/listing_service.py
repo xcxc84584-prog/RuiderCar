@@ -136,9 +136,24 @@ def delete_draft(uid,lid):
     except OSError:
         logger.warning("[delete_draft] unable to remove folder: %s",folder,exc_info=True)
     return True,"草稿已永久刪除"
+def admin_force_remove(admin_uid,lid):
+    with SessionLocal() as db:
+        admin=db.get(User,admin_uid);x=db.get(Listing,lid)
+        if not admin or admin.role!="admin":return False,"沒有管理員權限"
+        if not x:return False,"商品不存在"
+        if x.status!="active":return False,"只有公開上架中的商品可以強制移除"
+        x.status="closed"
+        x.published_at=None
+        x.expires_at=None
+        db.commit()
+        return True,"商品已由管理員強制移除；未退還賣家流量，歷史資料已保留"
 def row_to_dict(x):
     d={c.name:getattr(x,c.name) for c in x.__table__.columns}
     with SessionLocal() as db:
         imgs=db.scalars(select(ListingImage).where(ListingImage.listing_id==x.id).order_by(ListingImage.sort_order,ListingImage.id)).all()
         d["images"]=[{"id":i.id,"file_path":i.file_path,"sort_order":i.sort_order} for i in imgs]
+        seller=db.get(User,x.seller_id)
+        d["seller_name"]=seller.name if seller else "未知賣家"
+        d["seller_email"]=seller.email if seller else ""
+        d["seller_phone"]=seller.phone if seller else ""
     return d

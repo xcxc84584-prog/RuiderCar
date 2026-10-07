@@ -1,6 +1,6 @@
 import streamlit as st
 from datetime import datetime,timedelta
-from backend.services.listing_service import get_listing
+from backend.services.listing_service import get_listing,admin_force_remove
 from backend.services.appointment_service import create
 from backend.services.message_service import send
 from backend.database import PROJECT_ROOT
@@ -33,8 +33,17 @@ def render():
         st.write(f'**看車地址：** {x["meeting_address"]}')
         st.write(f'**付款方式：** {x["payment_method"]}')
         st.write(f'**接受貸款：** {"是" if x["accepts_loan"] else "否"}')
+        st.write(f'**賣家：** {x.get("seller_name","")}')
+        st.write(f'**賣家 Email：** {x.get("seller_email","")}')
+        st.write(f'**賣家電話：** {x.get("seller_phone","")}')
     st.subheader("商品說明")
     st.write(x["description"] or "賣家尚未填寫詳細說明。")
+    if current and current.get("role")=="admin" and x["status"]=="active":
+        st.warning("管理員強制移除不會退還賣家流量，且會保留商品歷史資料。")
+        if st.button("管理員強制移除商品",key=f'admin_force_remove_detail_{x["id"]}',use_container_width=True):
+            ok,msg=admin_force_remove(current["id"],x["id"])
+            (st.success if ok else st.error)(msg)
+            if ok:st.session_state.page="首頁";st.rerun()
     u=st.session_state.get("user")
     if not u:
         st.info("登入後即可預約看車或聯絡賣家。")

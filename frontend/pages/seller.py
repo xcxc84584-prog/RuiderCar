@@ -61,6 +61,7 @@ def render():
                     st.markdown(f'**NT$ {x["price"]:,}**')
                     st.caption(f'商品 #{x["id"]}｜狀態：{status_label}｜已扣流量：{x["traffic_cost"]}')
                     if x.get("summary"):st.write(x["summary"])
+                    st.caption(f'賣家：{x.get("seller_name","")}｜{x.get("seller_email","")}｜{x.get("seller_phone","")}')
                     if x["status"]=="active" and x.get("expires_at"):st.caption(f'預計到期：{x["expires_at"]}')
                 with st.expander("管理商品",expanded=False):
                     st.markdown(f'#### {x["title"]}　NT$ {x["price"]:,}')
@@ -105,19 +106,10 @@ def render():
                         if c2.button("前往流量中心",key=f'traffic{x["id"]}',use_container_width=True):
                             st.session_state.page="流量中心";st.rerun()
                         st.divider()
-                        confirm_key=f'confirm_delete_draft_{x["id"]}'
-                        if not st.session_state.get(confirm_key,False):
-                            if st.button("🗑 刪除草稿",key=f'delete_draft_{x["id"]}',use_container_width=True):
-                                st.session_state[confirm_key]=True;st.rerun()
-                        else:
-                            st.error("此操作會永久刪除草稿及其所有照片，而且無法復原。")
-                            d1,d2=st.columns(2)
-                            if d1.button("確定永久刪除",key=f'confirm_delete_{x["id"]}',type="primary",use_container_width=True):
-                                ok,msg=delete_draft(uid,x["id"])
-                                st.session_state.pop(confirm_key,None)
-                                st.session_state.seller_flash=("success" if ok else "error",msg);st.rerun()
-                            if d2.button("取消",key=f'cancel_delete_{x["id"]}',use_container_width=True):
-                                st.session_state.pop(confirm_key,None);st.rerun()
+                        st.caption("刪除草稿會永久刪除草稿及其照片，無法復原。")
+                        if st.button("🗑 刪除草稿",key=f'delete_draft_{x["id"]}',use_container_width=True):
+                            ok,msg=delete_draft(uid,x["id"])
+                            st.session_state.seller_flash=("success" if ok else "error",msg);st.rerun()
                     elif x["status"]=="active":
                         st.success("此商品已正式上架並公開顯示。")
                         refund=unlist_refund_preview(uid,x["id"])
