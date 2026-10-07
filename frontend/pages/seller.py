@@ -54,7 +54,7 @@ def render():
                 lid,msg=create_draft(uid,data)
                 if lid:st.success(f"草稿 #{lid} 已建立")
                 else:st.error(msg)
-    with tab2:
+    if section=="我的商品":
         xs=user_listings(uid)
         if not xs:st.info("目前沒有商品。")
         for x in xs:
