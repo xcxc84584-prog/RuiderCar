@@ -5,13 +5,15 @@ from sqlalchemy import select,delete
 from backend.database import SessionLocal
 from backend.models.entities import User
 from backend.models.session import LoginSession
-SESSION_DAYS=7
+SESSION_HOURS=12
+REMEMBER_DAYS=30
 def _hash(token):
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
-def create_login_session(user_id):
+def create_login_session(user_id,remember=False):
     token=secrets.token_urlsafe(48)
+    lifetime=timedelta(days=REMEMBER_DAYS) if remember else timedelta(hours=SESSION_HOURS)
     with SessionLocal() as db:
-        db.add(LoginSession(user_id=user_id,token_hash=_hash(token),expires_at=datetime.utcnow()+timedelta(days=SESSION_DAYS)))
+        db.add(LoginSession(user_id=user_id,token_hash=_hash(token),expires_at=datetime.utcnow()+lifetime))
         db.commit()
     return token
 def restore_login_session(token):
