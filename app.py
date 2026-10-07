@@ -4,7 +4,11 @@ from frontend.styles.theme import apply_theme
 from frontend.router import route
 from frontend.auth_session import restore_browser_session,logout_browser_session
 st.set_page_config(page_title="RuiderCar 車輛交易平台",page_icon="🚙",layout="wide",initial_sidebar_state="expanded")
-seed();apply_theme()
+@st.cache_resource(show_spinner=False)
+def _bootstrap():
+    seed()
+    return True
+_bootstrap();apply_theme()
 if "page" not in st.session_state:st.session_state.page="首頁"
 restore_browser_session()
 with st.sidebar:
