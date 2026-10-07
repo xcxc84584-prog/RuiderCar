@@ -44,80 +44,97 @@ def render():
         xs=user_listings(uid)
         if not xs:st.info("目前沒有商品。")
         for x in xs:
+            imgs=x.get("images") or []
+            status_label={"draft":"草稿","active":"已上架","closed":"已下架"}.get(x["status"],x["status"])
             with st.container(border=True):
-                st.markdown(f'### {x["title"]}　NT$ {x["price"]:,}')
-                st.caption(f'商品 #{x["id"]}｜狀態：{x["status"]}｜已扣流量：{x["traffic_cost"]}')
-                imgs=x.get("images") or []
-                if imgs:
-                    st.caption(f"商品照片：{len(imgs)}/10（第 1 張為商品卡封面）")
-                    icols=st.columns(min(5,len(imgs)))
-                    for ii,img in enumerate(imgs):
-                        with icols[ii%len(icols)]:
-                            from backend.database import PROJECT_ROOT
-                            ip=PROJECT_ROOT/img["file_path"]
-                            if ip.exists():st.image(str(ip),use_container_width=True)
-                            st.caption(f"#{ii+1}"+(" 封面" if ii==0 else ""))
-                            a,b,c=st.columns(3)
-                            if a.button("←",key=f'left_{img["id"]}',disabled=ii==0):
-                                move_image(uid,img["id"],-1);st.rerun()
-                            if b.button("→",key=f'right_{img["id"]}',disabled=ii==len(imgs)-1):
-                                move_image(uid,img["id"],1);st.rerun()
-                            if c.button("刪",key=f'delimg_{img["id"]}'):
-                                delete_image(uid,img["id"]);st.rerun()
-                uploads=st.file_uploader("新增商品照片（最多 10 張；第 1 張為封面）",type=["jpg","jpeg","png","webp"],accept_multiple_files=True,key=f'photos_{x["id"]}')
-                if uploads and st.button("儲存新增照片",key=f'savephotos_{x["id"]}',use_container_width=True):
-                    ok,msg=add_uploaded_images(uid,x["id"],uploads)
-                    st.session_state.seller_flash=("success" if ok else "error",msg);st.rerun()
-                if x["status"]=="draft":
-                    cost=publication_cost(x["id"])
-                    st.info(f'正式上架預計需要 {cost} 流量；目前餘額 {st.session_state.user["traffic_balance"]}。')
-                    with st.expander("重新載入／修改草稿"):
-                        with st.form(f'edit_{x["id"]}'):
-                            data=_data(f'edit_{x["id"]}_',x)
-                            if st.form_submit_button("儲存修改",use_container_width=True):
-                                ok,msg=update_draft(uid,x["id"],data)
-                                st.session_state.seller_flash=("success" if ok else "error",msg);st.rerun()
-                    c1,c2=st.columns(2)
-                    if c1.button("正式上架",key=f'pub{x["id"]}',use_container_width=True):
-                        ok,msg=publish(uid,x["id"])
-                        if ok:
-                            st.session_state.user["traffic_balance"]-=cost
-                            st.session_state.seller_flash=("success",msg);st.rerun()
+                cimg,cinfo=st.columns([1,2])
+                with cimg:
+                    if imgs:
+                        from backend.database import PROJECT_ROOT
+                        cover=PROJECT_ROOT/imgs[0]["file_path"]
+                        if cover.exists():st.image(str(cover),use_container_width=True)
+                        else:st.caption("封面圖片暫時無法顯示")
+                    else:
+                        st.caption("尚未上傳封面圖片")
+                with cinfo:
+                    st.markdown(f'### {x["title"]}')
+                    st.markdown(f'**NT$ {x["price"]:,}**')
+                    st.caption(f'商品 #{x["id"]}｜狀態：{status_label}｜已扣流量：{x["traffic_cost"]}')
+                    if x.get("summary"):st.write(x["summary"])
+                    if x["status"]=="active" and x.get("expires_at"):st.caption(f'預計到期：{x["expires_at"]}')
+                with st.expander("管理商品",expanded=False):
+                    st.markdown(f'#### {x["title"]}　NT$ {x["price"]:,}')
+                    st.caption(f'商品 #{x["id"]}｜狀態：{status_label}｜已扣流量：{x["traffic_cost"]}')
+                    if imgs:
+                        st.caption(f"商品照片：{len(imgs)}/10（第 1 張為商品卡封面）")
+                        icols=st.columns(min(5,len(imgs)))
+                        for ii,img in enumerate(imgs):
+                            with icols[ii%len(icols)]:
+                                from backend.database import PROJECT_ROOT
+                                ip=PROJECT_ROOT/img["file_path"]
+                                if ip.exists():st.image(str(ip),use_container_width=True)
+                                st.caption(f"#{ii+1}"+(" 封面" if ii==0 else ""))
+                                a,b,c=st.columns(3)
+                                if a.button("←",key=f'left_{img["id"]}',disabled=ii==0):
+                                    move_image(uid,img["id"],-1);st.rerun()
+                                if b.button("→",key=f'right_{img["id"]}',disabled=ii==len(imgs)-1):
+                                    move_image(uid,img["id"],1);st.rerun()
+                                if c.button("刪",key=f'delimg_{img["id"]}'):
+                                    delete_image(uid,img["id"]);st.rerun()
+                    uploads=st.file_uploader("新增商品照片（最多 10 張；第 1 張為封面）",type=["jpg","jpeg","png","webp"],accept_multiple_files=True,key=f'photos_{x["id"]}')
+                    if uploads and st.button("儲存新增照片",key=f'savephotos_{x["id"]}',use_container_width=True):
+                        ok,msg=add_uploaded_images(uid,x["id"],uploads)
+                        st.session_state.seller_flash=("success" if ok else "error",msg);st.rerun()
+                    if x["status"]=="draft":
+                        cost=publication_cost(x["id"])
+                        st.info(f'正式上架預計需要 {cost} 流量；目前餘額 {st.session_state.user["traffic_balance"]}。')
+                        with st.expander("重新載入／修改草稿"):
+                            with st.form(f'edit_{x["id"]}'):
+                                data=_data(f'edit_{x["id"]}_',x)
+                                if st.form_submit_button("儲存修改",use_container_width=True):
+                                    ok,msg=update_draft(uid,x["id"],data)
+                                    st.session_state.seller_flash=("success" if ok else "error",msg);st.rerun()
+                        c1,c2=st.columns(2)
+                        if c1.button("正式上架",key=f'pub{x["id"]}',use_container_width=True):
+                            ok,msg=publish(uid,x["id"])
+                            if ok:
+                                st.session_state.user["traffic_balance"]-=cost
+                                st.session_state.seller_flash=("success",msg);st.rerun()
+                            else:
+                                st.error(msg)
+                        if c2.button("前往流量中心",key=f'traffic{x["id"]}',use_container_width=True):
+                            st.session_state.page="流量中心";st.rerun()
+                        st.divider()
+                        confirm_key=f'confirm_delete_draft_{x["id"]}'
+                        if not st.session_state.get(confirm_key,False):
+                            if st.button("🗑 刪除草稿",key=f'delete_draft_{x["id"]}',use_container_width=True):
+                                st.session_state[confirm_key]=True;st.rerun()
                         else:
-                            st.error(msg)
-                    if c2.button("前往流量中心",key=f'traffic{x["id"]}',use_container_width=True):
-                        st.session_state.page="流量中心";st.rerun()
-                    st.divider()
-                    confirm_key=f'confirm_delete_draft_{x["id"]}'
-                    if not st.session_state.get(confirm_key,False):
-                        if st.button("🗑 刪除草稿",key=f'delete_draft_{x["id"]}',use_container_width=True):
-                            st.session_state[confirm_key]=True;st.rerun()
-                    else:
-                        st.error("此操作會永久刪除草稿及其所有照片，而且無法復原。")
-                        d1,d2=st.columns(2)
-                        if d1.button("確定永久刪除",key=f'confirm_delete_{x["id"]}',type="primary",use_container_width=True):
-                            ok,msg=delete_draft(uid,x["id"])
-                            st.session_state.pop(confirm_key,None)
-                            st.session_state.seller_flash=("success" if ok else "error",msg);st.rerun()
-                        if d2.button("取消",key=f'cancel_delete_{x["id"]}',use_container_width=True):
-                            st.session_state.pop(confirm_key,None);st.rerun()
-                elif x["status"]=="active":
-                    st.success("此商品已正式上架並公開顯示。")
-                    refund=unlist_refund_preview(uid,x["id"])
-                    if x.get("published_at"):st.caption(f'上架時間：{x["published_at"]}')
-                    if x.get("expires_at"):st.caption(f'預計到期：{x["expires_at"]}')
-                    st.info(f"目前下架預計退還：{refund or 0} 流量（按剩餘上架期間計算；最低流量不退款）")
-                    confirm_key=f'confirm_unlist_{x["id"]}'
-                    if not st.session_state.get(confirm_key,False):
-                        if st.button("下架商品",key=f'unlist_{x["id"]}',use_container_width=True):
-                            st.session_state[confirm_key]=True;st.rerun()
-                    else:
-                        st.warning(f"確定下架？目前預計退還 {refund or 0} 流量。下架後商品會回到草稿並從首頁消失。")
-                        u1,u2=st.columns(2)
-                        if u1.button("確定下架",key=f'confirm_unlist_btn_{x["id"]}',type="primary",use_container_width=True):
-                            ok,msg,amount=unlist(uid,x["id"])
-                            if ok:st.session_state.user["traffic_balance"]+=amount
-                            st.session_state.pop(confirm_key,None)
-                            st.session_state.seller_flash=("success" if ok else "error",msg);st.rerun()
-                        if u2.button("取消",key=f'cancel_unlist_{x["id"]}',use_container_width=True):
-                            st.session_state.pop(confirm_key,None);st.rerun()
+                            st.error("此操作會永久刪除草稿及其所有照片，而且無法復原。")
+                            d1,d2=st.columns(2)
+                            if d1.button("確定永久刪除",key=f'confirm_delete_{x["id"]}',type="primary",use_container_width=True):
+                                ok,msg=delete_draft(uid,x["id"])
+                                st.session_state.pop(confirm_key,None)
+                                st.session_state.seller_flash=("success" if ok else "error",msg);st.rerun()
+                            if d2.button("取消",key=f'cancel_delete_{x["id"]}',use_container_width=True):
+                                st.session_state.pop(confirm_key,None);st.rerun()
+                    elif x["status"]=="active":
+                        st.success("此商品已正式上架並公開顯示。")
+                        refund=unlist_refund_preview(uid,x["id"])
+                        if x.get("published_at"):st.caption(f'上架時間：{x["published_at"]}')
+                        if x.get("expires_at"):st.caption(f'預計到期：{x["expires_at"]}')
+                        st.info(f"目前下架預計退還：{refund or 0} 流量（按剩餘上架期間計算；最低流量不退款）")
+                        confirm_key=f'confirm_unlist_{x["id"]}'
+                        if not st.session_state.get(confirm_key,False):
+                            if st.button("下架商品",key=f'unlist_{x["id"]}',use_container_width=True):
+                                st.session_state[confirm_key]=True;st.rerun()
+                        else:
+                            st.warning(f"確定下架？目前預計退還 {refund or 0} 流量。下架後商品會回到草稿並從首頁消失。")
+                            u1,u2=st.columns(2)
+                            if u1.button("確定下架",key=f'confirm_unlist_btn_{x["id"]}',type="primary",use_container_width=True):
+                                ok,msg,amount=unlist(uid,x["id"])
+                                if ok:st.session_state.user["traffic_balance"]+=amount
+                                st.session_state.pop(confirm_key,None)
+                                st.session_state.seller_flash=("success" if ok else "error",msg);st.rerun()
+                            if u2.button("取消",key=f'cancel_unlist_{x["id"]}',use_container_width=True):
+                                st.session_state.pop(confirm_key,None);st.rerun()
