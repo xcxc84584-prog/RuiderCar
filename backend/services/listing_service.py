@@ -115,8 +115,9 @@ def delete_draft(uid,lid):
             db.flush()
             db.delete(x)
             db.commit()
-        except Exception:
+        except Exception as e:
             db.rollback()
+            print(f"[delete_draft] listing_id={lid} error={type(e).__name__}: {e}")
             return False,"草稿永久刪除失敗"
     for path in paths:
         try:
