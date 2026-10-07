@@ -1,0 +1,52 @@
+import streamlit as st
+from backend.services.admin_service import settings,save_setting
+from backend.services.message_service import admin_messages,reply_admin,set_admin_message_status
+from backend.services.traffic_service import pending,approve
+from backend.services.backup_service import make_backup
+
+def render():
+    if st.session_state.user.get("role")!="admin":st.error("沒有管理員權限");return
+    st.title("管理員後台")
+    tabs=st.tabs(["Dashboard","管理員信箱","流量審核","系統設定","資料備份"])
+    with tabs[0]:
+        st.info("管理員後台。")
+    with tabs[1]:
+        rows=admin_messages()
+        if not rows:st.info("目前沒有管理員信件。")
+        for m in rows:
+            with st.expander(f'#{m["id"]} [{m["status"]}] {m["subject"]}｜{m["user_name"]}'):
+                st.caption(f'帳號名：{m["user_name"]}｜信箱：{m["user_email"]}｜電話：{m["user_phone"]}')
+                st.caption(f'類型：{m["category"]}｜送出時間：{m["created_at"]}')
+                st.write(m["body"])
+                statuses=["未讀","已讀","處理中","已回覆","已關閉"]
+                idx=statuses.index(m["status"]) if m["status"] in statuses else 0
+                c1,c2=st.columns(2)
+                ns=c1.selectbox("狀態",statuses,index=idx,key=f'ams_{m["id"]}')
+                if c2.button("更新狀態",key=f'amsb_{m["id"]}',use_container_width=True):
+                    set_admin_message_status(m["id"],ns);st.rerun()
+                r=st.text_area("快速回信",value=m["reply"],key=f'r{m["id"]}')
+                if st.button("回覆並標記已回覆",key=f'rr{m["id"]}',type="primary",use_container_width=True):
+                    if reply_admin(m["id"],r):st.rerun()
+                    else:st.error("回覆內容不可為空")
+    with tabs[2]:
+        for r in pending():
+            st.write(f'申請 #{r["id"]}｜會員 {r["user_id"]}｜NT$ {r["amount"]}｜末五碼 {r["last5"]}')
+            if st.button("批准",key=f'ap{r["id"]}'):approve(r["id"]);st.rerun()
+    with tabs[3]:
+        s=settings()
+        initial=st.number_input("新會員初始流量",min_value=0,value=int(s.get("initial_traffic","1000")))
+        coef=st.number_input("商品價格係數",min_value=0.0,value=float(s.get("category_coefficient","0.001")),format="%.4f")
+        minimum=st.number_input("商品類別低消",min_value=0,value=int(s.get("category_minimum","300")))
+        email=st.text_input("管理員信箱",value=s.get("admin_email",""))
+        bank=st.text_input("收款銀行",value=s.get("bank_name",""))
+        holder=st.text_input("收款戶名",value=s.get("bank_holder",""))
+        account=st.text_input("收款銀行帳號",value=s.get("transfer_account",""))
+        transfer_note=st.text_area("流量購買/轉帳說明",value=s.get("transfer_note",""))
+        if st.button("儲存系統設定",use_container_width=True):
+            values={"initial_traffic":initial,"category_coefficient":coef,"category_minimum":minimum,"admin_email":email,"bank_name":bank,"bank_holder":holder,"transfer_account":account,"transfer_note":transfer_note}
+            for k,v in values.items():save_setting(k,v)
+            st.success("設定已儲存")
+    with tabs[4]:
+        st.warning("Cloud 正式環境請使用外部 PostgreSQL 與持久化物件儲存；本功能提供管理員離線備份。")
+        name,data=make_backup()
+        st.download_button("備份到本地",data=data,file_name=name,mime="application/zip",use_container_width=True)
