@@ -3,7 +3,8 @@ from datetime import datetime,timedelta
 from backend.services.listing_service import get_listing,admin_force_remove
 from backend.services.appointment_service import create
 from backend.services.message_service import send
-from backend.database import PROJECT_ROOT
+from backend.services.image_service import image_source
+from backend.services.favorite_service import is_favorite,toggle_favorite
 
 def render():
     lid=st.session_state.get("selected_listing")
@@ -14,11 +15,16 @@ def render():
         st.warning("此商品目前未上架。");return
     imgs=x.get("images") or []
     st.title(x["title"])
+    if current:
+        fav=is_favorite(current["id"],x["id"])
+        if st.button("★ 已收藏｜取消收藏" if fav else "☆ 收藏商品",key=f'favorite_detail_{x["id"]}'):
+            ok,msg,_=toggle_favorite(current["id"],x["id"]);(st.success if ok else st.error)(msg)
+            if ok:st.rerun()
     top_image,top_info=st.columns([1.05,1.35],gap="large")
     with top_image:
         if imgs:
-            cover=PROJECT_ROOT/imgs[0]["file_path"]
-            if cover.exists():st.image(str(cover),use_container_width=True)
+            source=image_source(imgs[0])
+            if source is not None:st.image(source,use_container_width=True)
             else:st.info("封面照片目前無法顯示。")
         else:st.info("賣家尚未上傳商品照片。")
     with top_info:
@@ -72,6 +78,6 @@ def render():
         for start in range(0,len(gallery),3):
             cols=st.columns(3)
             for offset,img in enumerate(gallery[start:start+3]):
-                path=PROJECT_ROOT/img["file_path"]
-                if path.exists():
-                    with cols[offset]:st.image(str(path),use_container_width=True,caption=f"照片 {start+offset+2}")
+                source=image_source(img)
+                if source is not None:
+                    with cols[offset]:st.image(source,use_container_width=True,caption=f"照片 {start+offset+2}")

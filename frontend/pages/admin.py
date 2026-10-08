@@ -1,5 +1,5 @@
 import streamlit as st
-from backend.services.admin_service import settings,save_setting,users_for_admin,blacklist_user,unblacklist_user,permanently_delete_user,bulk_blacklist_users,bulk_unblacklist_users
+from backend.services.admin_service import settings,save_setting,users_for_admin,blacklist_user,unblacklist_user,permanently_delete_user,bulk_blacklist_users,bulk_unblacklist_users,impersonate_user
 from backend.services.message_service import admin_messages,reply_admin,set_admin_message_status,delete_admin_messages,bulk_admin_message_status
 from backend.services.traffic_service import pending,approve,reject
 from backend.services.backup_service import make_backup
@@ -27,6 +27,15 @@ def render():
             status="已註銷" if u["deleted"] else ("黑名單" if u["blacklisted"] else "正常")
             with st.expander(f'#{u["id"]} [{status}] {u["name"]}｜{u["email"]}'):
                 st.caption(f'電話：{u["phone"]}｜角色：{u["role"]}｜流量：{u["traffic_balance"]}｜註冊：{u["created_at"]}')
+                if not u["deleted"] and u["id"]!=st.session_state.user["id"]:
+                    if st.button("強制登入／切換成此帳號",key=f'impersonate_{u["id"]}',use_container_width=True):
+                        ok,msg,target=impersonate_user(st.session_state.user["id"],u["id"])
+                        if ok:
+                            st.session_state.impersonator_admin=st.session_state.user.copy()
+                            st.session_state.user=target
+                            st.session_state.page="首頁"
+                            st.rerun()
+                        else:st.error(msg)
                 if u["deleted"]:
                     st.info("此帳戶已註銷，僅保留歷史資料，不提供黑名單操作。")
                 elif u["blacklisted"]:

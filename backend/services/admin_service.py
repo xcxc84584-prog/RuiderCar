@@ -1,7 +1,7 @@
 from sqlalchemy import select,text
 import streamlit as st
 from backend.database import SessionLocal
-from backend.models.entities import SystemSetting,User,Listing,ListingImage,Appointment,Message,AdminMessage,TrafficTransaction,TrafficPurchaseRequest,RegistrationRisk
+from backend.models.entities import SystemSetting,User,Listing,ListingImage,Favorite,Appointment,Message,AdminMessage,TrafficTransaction,TrafficPurchaseRequest,RegistrationRisk
 from backend.models.session import LoginSession
 from datetime import datetime
 
@@ -112,11 +112,13 @@ def permanently_delete_user(admin_uid,target_uid):
             listing_ids=[x.id for x in listings]
             if listing_ids:
                 db.query(ListingImage).filter(ListingImage.listing_id.in_(listing_ids)).delete(synchronize_session=False)
+                db.query(Favorite).filter(Favorite.listing_id.in_(listing_ids)).delete(synchronize_session=False)
                 db.query(Appointment).filter(Appointment.listing_id.in_(listing_ids)).delete(synchronize_session=False)
                 db.query(Message).filter(Message.listing_id.in_(listing_ids)).update({Message.listing_id:None},synchronize_session=False)
                 for lid in listing_ids:folders.append(PROJECT_ROOT/"storage"/"uploads"/"listings"/str(lid))
                 db.query(Listing).filter(Listing.id.in_(listing_ids)).delete(synchronize_session=False)
             db.query(Appointment).filter(Appointment.buyer_id==target_uid).delete(synchronize_session=False)
+            db.query(Favorite).filter(Favorite.user_id==target_uid).delete(synchronize_session=False)
             db.query(Message).filter((Message.sender_id==target_uid)|(Message.receiver_id==target_uid)).delete(synchronize_session=False)
             db.query(AdminMessage).filter(AdminMessage.user_id==target_uid).delete(synchronize_session=False)
             db.query(TrafficTransaction).filter(TrafficTransaction.user_id==target_uid).delete(synchronize_session=False)
@@ -152,3 +154,12 @@ def bulk_unblacklist_users(uids):
         ok,_=unblacklist_user(uid)
         if ok:done+=1
     return True,f"已解除 {done} 位會員的黑名單"
+
+def impersonate_user(admin_uid,target_uid):
+    with SessionLocal() as db:
+        admin=db.get(User,admin_uid);target=db.get(User,target_uid)
+        if not admin or admin.role!="admin":return False,"沒有管理員權限",None
+        if not target:return False,"會員不存在",None
+        deleted=(target.name=="已註銷會員" and target.email.startswith("deleted-") and target.email.endswith("@deleted.invalid"))
+        if deleted:return False,"已註銷帳號不可強制登入",None
+        return True,f"已切換為會員 #{target.id} {target.name}",{"id":target.id,"name":target.name,"email":target.email,"role":target.role,"traffic_balance":target.traffic_balance}

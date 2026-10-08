@@ -13,20 +13,30 @@ _bootstrap();apply_theme()
 if "page" not in st.session_state:st.session_state.page="首頁"
 restore_browser_session()
 if st.session_state.get("user"):
-    latest=fresh_user(st.session_state.user["id"])
-    if latest:st.session_state.user=latest
-    else:logout_browser_session()
+    if not st.session_state.get("impersonator_admin"):
+        latest=fresh_user(st.session_state.user["id"])
+        if latest:st.session_state.user=latest
+        else:logout_browser_session()
 with st.sidebar:
     st.markdown("## 🚙 RuiderCar")
     u=st.session_state.get("user")
     if u:
+        if st.session_state.get("impersonator_admin"):
+            admin_origin=st.session_state.impersonator_admin
+            st.warning(f'管理員代理登入：#{u["id"]} {u["name"]}')
+            if st.button("返回管理員帳號",use_container_width=True,key="return_admin"):
+                st.session_state.user=admin_origin
+                st.session_state.pop("impersonator_admin",None)
+                st.session_state.page="管理員後台"
+                st.rerun()
         st.success(f'登入：{u["name"]}')
         st.caption(f'流量：{u["traffic_balance"]}')
-        pages=["首頁","我的預約","信件區","送信給管理員","流量中心","賣出／商品管理","輔助與說明","帳號設定"]
+        pages=["首頁","我的收藏","我的預約","信件區","送信給管理員","流量中心","賣出／商品管理","輔助與說明","帳號設定"]
         if u.get("role")=="admin":pages.append("管理員後台")
         for p in pages:
             if st.button(p,use_container_width=True,key=f"nav_{p}"):st.session_state.page=p;st.rerun()
         if st.button("登出",use_container_width=True):
+            st.session_state.pop("impersonator_admin",None)
             logout_browser_session();st.session_state.page="首頁";st.rerun()
     else:
         if st.button("首頁",use_container_width=True):st.session_state.page="首頁";st.rerun()

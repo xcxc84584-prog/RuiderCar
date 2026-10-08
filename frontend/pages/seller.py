@@ -1,6 +1,6 @@
 import streamlit as st
 from backend.services.listing_service import create_draft,user_listings,update_draft,publish,publication_cost,delete_draft,unlist_refund_preview,unlist
-from backend.services.image_service import add_uploaded_images,delete_image,move_image
+from backend.services.image_service import add_uploaded_images,delete_image,move_image,image_source
 def _data(prefix="",values=None,product_type_override=None,show_type=True):
     v=values or {}
     types=["車輛商品","常規商品"];type0="常規商品" if v.get("product_type")=="general" else "車輛商品"
@@ -69,9 +69,8 @@ def render():
                     cimg,cinfo=st.columns([1,2])
                     with cimg:
                         if imgs:
-                            from backend.database import PROJECT_ROOT
-                            cover=PROJECT_ROOT/imgs[0]["file_path"]
-                            if cover.exists():st.image(str(cover),use_container_width=True)
+                            source=image_source(imgs[0])
+                            if source is not None:st.image(source,use_container_width=True)
                             else:st.caption("封面圖片暫時無法顯示")
                         else:
                             st.caption("尚未上傳封面圖片")
@@ -99,9 +98,8 @@ def render():
                         icols=st.columns(min(5,len(imgs)))
                         for ii,img in enumerate(imgs):
                             with icols[ii%len(icols)]:
-                                from backend.database import PROJECT_ROOT
-                                ip=PROJECT_ROOT/img["file_path"]
-                                if ip.exists():st.image(str(ip),use_container_width=True)
+                                source=image_source(img)
+                                if source is not None:st.image(source,use_container_width=True)
                                 st.caption(f"#{ii+1}"+(" 封面" if ii==0 else ""))
                                 a,b,c=st.columns(3)
                                 if a.button("←",key=f'left_{img["id"]}',disabled=ii==0):

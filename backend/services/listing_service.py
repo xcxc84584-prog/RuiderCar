@@ -2,7 +2,7 @@ from datetime import datetime,timedelta
 import math
 from sqlalchemy import select
 from backend.database import SessionLocal
-from backend.models.entities import Listing,ListingImage,Appointment,Message,User,SystemSetting,TrafficTransaction
+from backend.models.entities import Listing,ListingImage,Favorite,Appointment,Message,User,SystemSetting,TrafficTransaction
 def _setting(db,key,default):
     x=db.get(SystemSetting,key);return float(x.value) if x else default
 def list_public(search="",vehicles_only=False):
@@ -120,6 +120,7 @@ def delete_draft(uid,lid):
             imgs=db.scalars(select(ListingImage).where(ListingImage.listing_id==lid)).all()
             paths=[PROJECT_ROOT/i.file_path for i in imgs]
             db.query(ListingImage).filter(ListingImage.listing_id==lid).delete(synchronize_session=False)
+            db.query(Favorite).filter(Favorite.listing_id==lid).delete(synchronize_session=False)
             db.query(Appointment).filter(Appointment.listing_id==lid).delete(synchronize_session=False)
             db.query(Message).filter(Message.listing_id==lid).update({Message.listing_id:None},synchronize_session=False)
             db.flush()
@@ -158,6 +159,7 @@ def admin_force_remove(admin_uid,lid,reason):
             paths=[PROJECT_ROOT/i.file_path for i in imgs]
             db.add(Message(sender_id=admin_uid,receiver_id=seller_id,listing_id=None,subject="系統通知：商品已由管理員強制移除",body=f"您的商品 #{lid}「{title}」已由管理員強制移除。原因：{reason}。該商品已下架並永久刪除，不退還上架流量。",status="未讀"))
             db.query(ListingImage).filter(ListingImage.listing_id==lid).delete(synchronize_session=False)
+            db.query(Favorite).filter(Favorite.listing_id==lid).delete(synchronize_session=False)
             db.query(Appointment).filter(Appointment.listing_id==lid).delete(synchronize_session=False)
             db.query(Message).filter(Message.listing_id==lid).update({Message.listing_id:None},synchronize_session=False)
             db.flush();db.delete(x);db.commit()
@@ -177,7 +179,7 @@ def row_to_dict(x):
     d={c.name:getattr(x,c.name) for c in x.__table__.columns}
     with SessionLocal() as db:
         imgs=db.scalars(select(ListingImage).where(ListingImage.listing_id==x.id).order_by(ListingImage.sort_order,ListingImage.id)).all()
-        d["images"]=[{"id":i.id,"file_path":i.file_path,"sort_order":i.sort_order} for i in imgs]
+        d["images"]=[{"id":i.id,"file_path":i.file_path,"image_data":i.image_data,"mime_type":i.mime_type,"sort_order":i.sort_order} for i in imgs]
         seller=db.get(User,x.seller_id)
         d["seller_name"]=seller.name if seller else "未知賣家"
         d["seller_email"]=seller.email if seller else ""

@@ -16,7 +16,7 @@ SessionLocal=sessionmaker(bind=engine,autoflush=False,autocommit=False)
 class Base(DeclarativeBase):
     pass
 def init_db():
-    from backend.models.entities import User,Listing,ListingImage,Appointment,Message,AdminMessage,TrafficTransaction,TrafficPurchaseRequest,SystemSetting,RegistrationRisk
+    from backend.models.entities import User,Listing,ListingImage,Favorite,Appointment,Message,AdminMessage,TrafficTransaction,TrafficPurchaseRequest,SystemSetting,RegistrationRisk
     from backend.models.session import LoginSession
     from sqlalchemy import inspect,text
     Base.metadata.create_all(engine)
@@ -30,14 +30,17 @@ def init_db():
                 "ALTER TABLE users ADD COLUMN IF NOT EXISTS verification_code_hash VARCHAR(64) NOT NULL DEFAULT ''",
                 "ALTER TABLE users ADD COLUMN IF NOT EXISTS verification_expires_at TIMESTAMP NULL",
                 "ALTER TABLE users ADD COLUMN IF NOT EXISTS verification_sent_at TIMESTAMP NULL",
-                "ALTER TABLE listings ADD COLUMN IF NOT EXISTS product_type VARCHAR(20) NOT NULL DEFAULT 'vehicle'"
+                "ALTER TABLE listings ADD COLUMN IF NOT EXISTS product_type VARCHAR(20) NOT NULL DEFAULT 'vehicle'",
+                "ALTER TABLE listing_images ADD COLUMN IF NOT EXISTS image_data BYTEA NULL",
+                "ALTER TABLE listing_images ADD COLUMN IF NOT EXISTS mime_type VARCHAR(60) NOT NULL DEFAULT 'image/jpeg'"
             ]
             for sql in statements:conn.execute(text(sql))
         elif dialect=="sqlite":
-            tables={"users":{c["name"] for c in inspect(engine).get_columns("users")},"listings":{c["name"] for c in inspect(engine).get_columns("listings")}}
+            tables={"users":{c["name"] for c in inspect(engine).get_columns("users")}, "listings":{c["name"] for c in inspect(engine).get_columns("listings")},"listing_images":{c["name"] for c in inspect(engine).get_columns("listing_images")}}
             additions={
                 "users":{"blacklisted":"BOOLEAN NOT NULL DEFAULT 0","blacklist_reason":"TEXT NOT NULL DEFAULT ''","blacklisted_at":"DATETIME","verification_code_hash":"VARCHAR(64) NOT NULL DEFAULT ''","verification_expires_at":"DATETIME","verification_sent_at":"DATETIME"},
-                "listings":{"published_at":"DATETIME","expires_at":"DATETIME","listing_time_fee":"INTEGER NOT NULL DEFAULT 0","refunded_time_fee":"INTEGER NOT NULL DEFAULT 0","product_type":"VARCHAR(20) NOT NULL DEFAULT 'vehicle'"}
+                "listings":{"published_at":"DATETIME","expires_at":"DATETIME","listing_time_fee":"INTEGER NOT NULL DEFAULT 0","refunded_time_fee":"INTEGER NOT NULL DEFAULT 0","product_type":"VARCHAR(20) NOT NULL DEFAULT 'vehicle'"},
+                "listing_images":{"image_data":"BLOB","mime_type":"VARCHAR(60) NOT NULL DEFAULT 'image/jpeg'"}
             }
             for table,cols in additions.items():
                 for name,ddl in cols.items():
