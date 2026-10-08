@@ -7,6 +7,7 @@ from datetime import datetime
 
 DEFAULTS={
     "initial_traffic":"1000",
+    "account_limit":"500",
     "traffic_max":"100",
     "traffic_min":"20",
     "traffic_per_100k_month":"5",
@@ -131,3 +132,23 @@ def permanently_delete_user(admin_uid,target_uid):
             if folder.exists():shutil.rmtree(folder)
         except OSError:logger.warning("[permanently_delete_user] unable to remove folder: %s",folder,exc_info=True)
     return True,"帳號及其平台關聯資料已徹底刪除"
+
+def bulk_blacklist_users(uids,reason):
+    ids=[int(x) for x in uids if str(x).isdigit()]
+    reason=str(reason or "").strip()
+    if not ids:return False,"請先選擇會員"
+    if not reason:return False,"請填寫批量加入黑名單原因"
+    done=0
+    for uid in ids:
+        ok,_=blacklist_user(uid,reason)
+        if ok:done+=1
+    return True,f"已將 {done} 位會員加入黑名單"
+
+def bulk_unblacklist_users(uids):
+    ids=[int(x) for x in uids if str(x).isdigit()]
+    if not ids:return False,"請先選擇會員"
+    done=0
+    for uid in ids:
+        ok,_=unblacklist_user(uid)
+        if ok:done+=1
+    return True,f"已解除 {done} 位會員的黑名單"

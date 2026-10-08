@@ -1,23 +1,34 @@
 import streamlit as st
 from backend.services.auth_service import login,register
 from backend.services.account_service import close_account,update_account_info
-from frontend.auth_session import establish_browser_session,logout_browser_session
+from frontend.auth_session import establish_browser_session,logout_browser_session,device_already_registered,mark_device_registered
 def render_login():
     st.title("登入")
     e=st.text_input("Email");p=st.text_input("密碼",type="password")
-    remember=st.checkbox("在此裝置保持登入 30 天",value=False,help="僅建議在自己的裝置使用。登出或帳號註銷後會失效。")
+    st.caption("登入後此裝置將自動保持登入狀態 30 天。")
     if st.button("登入",use_container_width=True):
         u=login(e,p)
         if u:
-            establish_browser_session(u,remember=remember);st.session_state.page="首頁";st.rerun()
+            try:
+                establish_browser_session(u,remember=True);st.session_state.page="首頁";st.rerun()
+            except Exception:
+                st.warning("一個裝置不可同時保持兩個帳號的登入狀態，請先登出目前帳號後再登入。")
+                return
         st.error("帳號或密碼錯誤")
 def render_register():
     st.title("註冊")
     n=st.text_input("名稱");e=st.text_input("Email");ph=st.text_input("手機號碼");p=st.text_input("密碼",type="password")
     if st.button("建立帳號",use_container_width=True):
-        ok,msg=register(n,e,ph,p);(st.success if ok else st.error)(msg)
+        if device_already_registered():
+            st.warning("一個裝置僅可註冊一個帳號。")
+            return
+        ok,msg=register(n,e,ph,p)
         if ok:
-            st.info("帳號已建立，可直接登入。")
+            mark_device_registered();st.success(msg);st.info("帳號已建立，可直接登入。")
+        else:
+            # 不向一般使用者顯示風險偵測或系統內部錯誤細節
+            if "手機號碼已綁定" in str(msg):st.warning("一個裝置或聯絡資料不可重複註冊帳號。")
+            else:st.error(msg)
     st.divider()
 
 def render_settings():

@@ -1,0 +1,11 @@
+# RuiderCar v6.2.1
+- Mobile appointment calendar rebuilt as a responsive scrollable 7x24 HTML grid.
+- Calendar booked cells remain clickable and focus the matching appointment record.
+- My Appointments reordered: buyer requests -> history -> calendar; collapsed/default views show at most 10 items.
+- Login now always enables 30-day remembered login; user checkbox removed.
+- Device duplicate-account/registration technical errors are hidden behind a friendly one-device message.
+- Browser registration marker prevents a normal browser device from registering multiple accounts (cookie-based abuse control).
+- Admin configurable account limit added; default 500 active accounts. Deleted anonymized accounts are excluded.
+- Batch operations added for member blacklist/unblacklist/permanent deletion, admin notifications, traffic reviews, user mail deletion, and appointment-history deletion.
+- My Products now shows a prominent listing-state badge before opening management controls.
+- Existing database schema reused; account_limit is stored in system_settings.

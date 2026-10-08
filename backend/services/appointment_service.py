@@ -53,3 +53,17 @@ def delete_appointment(uid,aid):
         l=db.get(Listing,a.listing_id)
         if a.buyer_id!=uid and (not l or l.seller_id!=uid):return False,"沒有權限刪除此預約"
         db.delete(a);db.commit();return True,"預約紀錄已刪除"
+
+def delete_appointments(uid,aids):
+    ids=[int(x) for x in aids if str(x).isdigit()]
+    if not ids:return False,"請先選擇要刪除的預約"
+    deleted=0
+    with SessionLocal() as db:
+        for aid in ids:
+            a=db.get(Appointment,aid)
+            if not a:continue
+            l=db.get(Listing,a.listing_id)
+            if a.buyer_id==uid or (l and l.seller_id==uid):
+                db.delete(a);deleted+=1
+        db.commit()
+    return True,f"已刪除 {deleted} 筆預約紀錄"

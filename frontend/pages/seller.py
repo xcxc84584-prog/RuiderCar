@@ -62,6 +62,9 @@ def render():
             imgs=x.get("images") or []
             status_label={"draft":"草稿","active":"已上架","closed":"已下架"}.get(x["status"],x["status"])
             with st.container(border=True):
+                if x["status"]=="active":st.success("🟢 已上架")
+                elif x["status"]=="draft":st.warning("🟡 草稿／未上架")
+                else:st.info(f"⚪ {status_label}")
                 if show_images:
                     cimg,cinfo=st.columns([1,2])
                     with cimg:

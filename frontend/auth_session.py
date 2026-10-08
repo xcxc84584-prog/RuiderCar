@@ -4,6 +4,7 @@ import streamlit as st
 from streamlit_cookies_controller import CookieController,RemoveEmptyElementContainer
 from backend.services.session_service import create_login_session,restore_login_session,revoke_login_session
 COOKIE_NAME="ruidercar_remember"
+REGISTER_DEVICE_COOKIE="ruidercar_registered_device"
 REMEMBER_DAYS=30
 RemoveEmptyElementContainer()
 def _controller():
@@ -56,3 +57,19 @@ def logout_browser_session():
     st.session_state.pop("remember_device",None)
     st.session_state.pop("auth_token",None)
     st.session_state.pop("user",None)
+
+def device_already_registered():
+    try:
+        v=_controller().get(REGISTER_DEVICE_COOKIE)
+        if isinstance(v,dict):v=v.get("value")
+        return bool(v)
+    except Exception:
+        return False
+
+def mark_device_registered():
+    try:
+        expiry=datetime.now()+timedelta(days=365)
+        _controller().set(REGISTER_DEVICE_COOKIE,"1",path="/",expires=expiry,max_age=365*24*60*60,secure=True,same_site="lax")
+        time.sleep(0.3)
+    except Exception:
+        pass

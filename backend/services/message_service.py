@@ -61,3 +61,34 @@ def reply_admin(mid,text):
         x=db.get(AdminMessage,mid)
         if not x:return False
         x.reply=text;x.status="已回覆";db.commit();return True
+
+def delete_messages(uid,mids):
+    ids=[int(x) for x in mids if str(x).isdigit()]
+    if not ids:return False,"請先選擇要刪除的信件"
+    changed=0
+    with SessionLocal() as db:
+        for mid in ids:
+            x=db.get(Message,mid)
+            if x and x.receiver_id==uid:
+                x.status="無送達紀錄";changed+=1
+        db.commit()
+    return True,f"已批量移除 {changed} 封信件；狀態已改為「無送達紀錄」"
+
+def delete_admin_messages(mids):
+    ids=[int(x) for x in mids if str(x).isdigit()]
+    if not ids:return False,"請先選擇通知"
+    with SessionLocal() as db:
+        rows=db.scalars(select(AdminMessage).where(AdminMessage.id.in_(ids))).all()
+        for x in rows:db.delete(x)
+        db.commit()
+    return True,f"已刪除 {len(rows)} 筆管理員通知"
+
+def bulk_admin_message_status(mids,status):
+    if status not in ("未讀","已讀","處理中","已回覆","已關閉"):return False,"狀態不正確"
+    ids=[int(x) for x in mids if str(x).isdigit()]
+    if not ids:return False,"請先選擇通知"
+    with SessionLocal() as db:
+        rows=db.scalars(select(AdminMessage).where(AdminMessage.id.in_(ids))).all()
+        for x in rows:x.status=status
+        db.commit()
+    return True,f"已更新 {len(rows)} 筆通知"

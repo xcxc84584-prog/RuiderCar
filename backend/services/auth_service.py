@@ -1,4 +1,4 @@
-from sqlalchemy import select
+from sqlalchemy import select,func
 from backend.database import SessionLocal
 from backend.models.entities import User,SystemSetting,TrafficTransaction,RegistrationRisk
 from backend.utils.password import hash_password,verify_password
@@ -11,6 +11,9 @@ def register(name,email,phone,password):
     if "@" not in email or "." not in email.split("@")[-1]:return False,"Email 格式不正確"
     if len(password)<8:return False,"密碼至少 8 碼"
     with SessionLocal() as db:
+        limit=max(1,int(setting(db,"account_limit",500)))
+        active_count=db.scalar(select(func.count(User.id)).where(~User.email.like("deleted-%@deleted.invalid"))) or 0
+        if active_count>=limit:return False,"目前帳號數量已達平台上限，暫時無法建立新帳號"
         if db.scalar(select(User).where(User.email==email)):return False,"此 Email 已註冊"
         if db.scalar(select(User).where(User.phone==phone)):
             db.add(RegistrationRisk(email=email,phone=phone,reason="手機號碼已被其他帳號使用"));db.commit()
