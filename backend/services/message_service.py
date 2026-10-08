@@ -4,22 +4,15 @@ from backend.models.entities import Message,AdminMessage,User
 
 def send(sender,receiver,subject,body,listing_id=None):
     with SessionLocal() as db:
-        db.add(Message(sender_id=sender,receiver_id=receiver,subject=subject,body=body,listing_id=listing_id))
-        db.commit()
+        db.add(Message(sender_id=sender,receiver_id=receiver,subject=subject,body=body,listing_id=listing_id));db.commit()
 
-def inbox(uid):
+def inbox(uid,keyword=""):
     with SessionLocal() as db:
-        rows=db.execute(
-            select(Message,User)
-            .join(User,User.id==Message.sender_id)
-            .where(Message.receiver_id==uid)
-            .order_by(Message.created_at.desc())
-        ).all()
-        out=[]
+        rows=db.execute(select(Message,User).join(User,User.id==Message.sender_id).where(Message.receiver_id==uid,Message.status!="無送達紀錄").order_by(Message.created_at.desc())).all()
+        out=[];k=str(keyword or "").strip().lower()
         for m,u in rows:
-            d={c.name:getattr(m,c.name) for c in m.__table__.columns}
-            d.update({"sender_name":u.name,"sender_email":u.email,"sender_phone":u.phone})
-            out.append(d)
+            if k and k not in str(u.id).lower() and k not in u.email.lower() and k not in u.phone.lower():continue
+            d={c.name:getattr(m,c.name) for c in m.__table__.columns};d.update({"sender_user_id":u.id,"sender_name":u.name,"sender_email":u.email,"sender_phone":u.phone});out.append(d)
         return out
 
 def set_message_status(uid,mid,status):
@@ -29,6 +22,12 @@ def set_message_status(uid,mid,status):
         if not x or x.receiver_id!=uid:return False
         x.status=status;db.commit();return True
 
+def delete_message(uid,mid):
+    with SessionLocal() as db:
+        x=db.get(Message,mid)
+        if not x or x.receiver_id!=uid:return False,"信件不存在或沒有權限"
+        x.status="無送達紀錄";db.commit();return True,"信件已從你的信件區移除，狀態已改為「無送達紀錄」"
+
 def quick_reply(uid,mid,body):
     body=(body or "").strip()
     if not body:return False,"回覆內容不可為空"
@@ -36,27 +35,16 @@ def quick_reply(uid,mid,body):
         x=db.get(Message,mid)
         if not x or x.receiver_id!=uid:return False,"信件不存在或沒有權限"
         subject=x.subject if x.subject.startswith("Re:") else f"Re: {x.subject}"
-        db.add(Message(sender_id=uid,receiver_id=x.sender_id,subject=subject,body=body,listing_id=x.listing_id,status="未讀"))
-        x.status="已讀"
-        db.commit()
-        return True,"回覆已送出"
+        db.add(Message(sender_id=uid,receiver_id=x.sender_id,subject=subject,body=body,listing_id=x.listing_id,status="未讀"));x.status="已讀";db.commit();return True,"回覆已送出"
 
 def send_admin(uid,category,subject,body):
-    with SessionLocal() as db:
-        db.add(AdminMessage(user_id=uid,category=category,subject=subject,body=body));db.commit()
+    with SessionLocal() as db:db.add(AdminMessage(user_id=uid,category=category,subject=subject,body=body));db.commit()
 
 def admin_messages():
     with SessionLocal() as db:
-        rows=db.execute(
-            select(AdminMessage,User)
-            .join(User,User.id==AdminMessage.user_id)
-            .order_by(AdminMessage.created_at.desc())
-        ).all()
-        out=[]
+        rows=db.execute(select(AdminMessage,User).join(User,User.id==AdminMessage.user_id).order_by(AdminMessage.created_at.desc())).all();out=[]
         for m,u in rows:
-            d={c.name:getattr(m,c.name) for c in m.__table__.columns}
-            d.update({"user_name":u.name,"user_email":u.email,"user_phone":u.phone})
-            out.append(d)
+            d={c.name:getattr(m,c.name) for c in m.__table__.columns};d.update({"user_name":u.name,"user_email":u.email,"user_phone":u.phone});out.append(d)
         return out
 
 def set_admin_message_status(mid,status):

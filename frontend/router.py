@@ -1,5 +1,5 @@
 import streamlit as st
-from frontend.pages import home,detail,account,member,seller,admin
+from frontend.pages import home,detail,account,member,seller,admin,help
 def route():
     p=st.session_state.get("page","首頁")
     if p=="首頁":home.render()
@@ -11,5 +11,6 @@ def route():
     elif p=="信件區":member.mailbox()
     elif p=="送信給管理員":member.admin_contact()
     elif p=="流量中心":member.traffic()
+    elif p=="輔助與說明":help.render()
     elif p=="賣出／商品管理":seller.render()
     elif p=="管理員後台":admin.render()

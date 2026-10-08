@@ -2,9 +2,11 @@ from sqlalchemy import select
 from backend.database import SessionLocal
 from backend.models.entities import TrafficTransaction,TrafficPurchaseRequest,User
 
-def transactions(uid):
+def transactions(uid,limit=None):
     with SessionLocal() as db:
-        xs=db.scalars(select(TrafficTransaction).where(TrafficTransaction.user_id==uid).order_by(TrafficTransaction.created_at.desc())).all()
+        q=select(TrafficTransaction).where(TrafficTransaction.user_id==uid).order_by(TrafficTransaction.created_at.desc())
+        if limit:q=q.limit(limit)
+        xs=db.scalars(q).all()
         return [{c.name:getattr(x,c.name) for c in x.__table__.columns} for x in xs]
 
 def purchase_requests(uid):

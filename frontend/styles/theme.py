@@ -13,4 +13,8 @@ def apply_theme():
     div.stButton>button{border-radius:10px;border:1px solid #2563eb;background:#123b70;color:white}
     div.stButton>button:hover{border-color:#60a5fa;background:#1d4ed8;color:white}
     [data-testid="stMetric"]{background:#0b1d35;border:1px solid #1f4f83;padding:12px;border-radius:14px}
+    [data-testid="stSidebarCollapsedControl"] button{width:auto!important;min-width:128px!important;padding:6px 10px!important}
+    [data-testid="stSidebarCollapsedControl"] button svg{display:none!important}
+    [data-testid="stSidebarCollapsedControl"] button:before{content:"使用者選擇 >>";font-weight:700;white-space:nowrap;color:#dbeafe}
+    [class*="st-key-cal_"] button,[class*="st-key-cal_"] button p{color:#ff4b4b!important;font-weight:800!important}
     </style>''',unsafe_allow_html=True)

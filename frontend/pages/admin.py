@@ -108,8 +108,12 @@ def render():
         hero_title_size=hc3.number_input("標題字號（px）",min_value=16,max_value=64,value=int(s.get("home_hero_title_size","26")),step=1)
         hero_subtitle_size=hc4.number_input("副標題字號（px）",min_value=10,max_value=32,value=int(s.get("home_hero_subtitle_size","16")),step=1)
         st.caption("寬度以首頁內容區百分比設定；高度與字號使用 px。")
+        st.divider()
+        st.subheader("輔助與說明設定")
+        help_changelog=st.text_area("更新日誌（支援 Markdown）",value=s.get("help_changelog",""),height=220)
+        help_guide=st.text_area("操作說明（支援 Markdown）",value=s.get("help_guide",""),height=260)
         if st.button("儲存系統設定",use_container_width=True):
-            values={"initial_traffic":initial,"traffic_max":traffic_max,"traffic_min":traffic_min,"traffic_per_100k_month":traffic_per,"admin_email":email,"bank_name":bank,"bank_holder":holder,"transfer_account":account,"transfer_note":transfer_note,"home_hero_title":hero_title,"home_hero_subtitle":hero_subtitle,"home_hero_width":hero_width,"home_hero_height":hero_height,"home_hero_title_size":hero_title_size,"home_hero_subtitle_size":hero_subtitle_size}
+            values={"initial_traffic":initial,"traffic_max":traffic_max,"traffic_min":traffic_min,"traffic_per_100k_month":traffic_per,"admin_email":email,"bank_name":bank,"bank_holder":holder,"transfer_account":account,"transfer_note":transfer_note,"home_hero_title":hero_title,"home_hero_subtitle":hero_subtitle,"home_hero_width":hero_width,"home_hero_height":hero_height,"home_hero_title_size":hero_title_size,"home_hero_subtitle_size":hero_subtitle_size,"help_changelog":help_changelog,"help_guide":help_guide}
             for k,v in values.items():save_setting(k,v)
             st.success("設定已儲存")
     with tabs[5]:

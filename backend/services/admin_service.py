@@ -20,7 +20,9 @@ DEFAULTS={
     "home_hero_width":"100",
     "home_hero_height":"140",
     "home_hero_title_size":"26",
-    "home_hero_subtitle_size":"16"
+    "home_hero_subtitle_size":"16",
+    "help_changelog":"## RuiderCar 更新日誌\n管理員可在系統設定中編輯此內容。",
+    "help_guide":"## 操作說明\n管理員可在系統設定中編輯此內容。"
 }
 def seed_settings():
     with SessionLocal() as db:
