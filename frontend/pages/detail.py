@@ -73,11 +73,13 @@ def render():
             if body.strip():send(u["id"],x["seller_id"],subject,body,x["id"]);st.success("訊息已送出")
     if len(imgs)>1:
         st.divider()
-        st.subheader("其他照片")
-        gallery=imgs[1:]
-        for start in range(0,len(gallery),3):
-            cols=st.columns(3)
-            for offset,img in enumerate(gallery[start:start+3]):
-                source=image_source(img)
-                if source is not None:
-                    with cols[offset]:st.image(source,use_container_width=True,caption=f"照片 {start+offset+2}")
+        load_gallery=st.toggle(f"展開／載入其他照片（{len(imgs)-1} 張）",value=False,key=f'load_gallery_{x["id"]}')
+        if load_gallery:
+            st.caption("詳細照片已按需載入。")
+            gallery=imgs[1:]
+            for start in range(0,len(gallery),3):
+                cols=st.columns(3)
+                for offset,img in enumerate(gallery[start:start+3]):
+                    source=image_source(img)
+                    if source is not None:
+                        with cols[offset]:st.image(source,use_container_width=True,caption=f"照片 {start+offset+2}")

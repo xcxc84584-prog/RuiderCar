@@ -162,4 +162,4 @@ def impersonate_user(admin_uid,target_uid):
         if not target:return False,"會員不存在",None
         deleted=(target.name=="已註銷會員" and target.email.startswith("deleted-") and target.email.endswith("@deleted.invalid"))
         if deleted:return False,"已註銷帳號不可強制登入",None
-        return True,f"已切換為會員 #{target.id} {target.name}",{"id":target.id,"name":target.name,"email":target.email,"role":target.role,"traffic_balance":target.traffic_balance}
+        return True,f"已切換為會員 #{target.id} {target.name}",{"id":target.id,"name":target.name,"email":target.email,"phone":target.phone,"role":target.role,"traffic_balance":target.traffic_balance,"default_meeting_address":target.default_meeting_address or ""}

@@ -40,8 +40,9 @@ def render_settings():
     st.caption("可修改登入 Email 與聯絡電話。修改後會立即套用。")
     email=st.text_input("Email",value=u.get("email",""),key="settings_email")
     phone=st.text_input("電話",value=u.get("phone",""),key="settings_phone")
+    default_meeting_address=st.text_input("常用交易／看貨地址",value=u.get("default_meeting_address",""),key="settings_default_meeting_address",placeholder="建立商品草稿時會自動帶入")
     if st.button("儲存帳戶訊息",type="primary",use_container_width=True):
-        ok,msg,new_user=update_account_info(u["id"],email,phone)
+        ok,msg,new_user=update_account_info(u["id"],email,phone,default_meeting_address)
         (st.success if ok else st.error)(msg)
         if ok:
             st.session_state.user=new_user

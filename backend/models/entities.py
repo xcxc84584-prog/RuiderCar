@@ -20,6 +20,7 @@ class User(Base):
     blacklisted:Mapped[bool]=mapped_column(Boolean,default=False)
     blacklist_reason:Mapped[str]=mapped_column(Text,default="")
     blacklisted_at:Mapped[datetime|None]=mapped_column(DateTime,nullable=True)
+    default_meeting_address:Mapped[str]=mapped_column(String(250),default="")
     created_at:Mapped[datetime]=mapped_column(DateTime,default=datetime.utcnow)
 
 

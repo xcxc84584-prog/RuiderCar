@@ -9,7 +9,9 @@ st.set_page_config(page_title="RuiderCar 車輛交易平台",page_icon="🚙",la
 def _bootstrap():
     seed()
     return True
-_bootstrap();apply_theme()
+_bootstrap()
+if "theme_mode" not in st.session_state:st.session_state.theme_mode="dark"
+apply_theme(st.session_state.theme_mode)
 if "page" not in st.session_state:st.session_state.page="首頁"
 restore_browser_session()
 if st.session_state.get("user"):
@@ -19,6 +21,10 @@ if st.session_state.get("user"):
         else:logout_browser_session()
 with st.sidebar:
     st.markdown("## 🚙 RuiderCar")
+    theme_label=st.radio("顯示模式",["🌙 黑夜","☀️ 白天"],index=0 if st.session_state.theme_mode=="dark" else 1,horizontal=True,key="theme_selector")
+    selected_theme="dark" if theme_label.startswith("🌙") else "light"
+    if selected_theme!=st.session_state.theme_mode:
+        st.session_state.theme_mode=selected_theme;st.rerun()
     u=st.session_state.get("user")
     if u:
         if st.session_state.get("impersonator_admin"):

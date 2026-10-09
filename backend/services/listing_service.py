@@ -179,9 +179,10 @@ def row_to_dict(x):
     d={c.name:getattr(x,c.name) for c in x.__table__.columns}
     with SessionLocal() as db:
         imgs=db.scalars(select(ListingImage).where(ListingImage.listing_id==x.id).order_by(ListingImage.sort_order,ListingImage.id)).all()
-        d["images"]=[{"id":i.id,"file_path":i.file_path,"image_data":i.image_data,"mime_type":i.mime_type,"sort_order":i.sort_order} for i in imgs]
+        d["images"]=[{"id":i.id,"file_path":i.file_path,"mime_type":i.mime_type,"sort_order":i.sort_order} for i in imgs]
         seller=db.get(User,x.seller_id)
         d["seller_name"]=seller.name if seller else "未知賣家"
         d["seller_email"]=seller.email if seller else ""
         d["seller_phone"]=seller.phone if seller else ""
+        d["seller_default_meeting_address"]=seller.default_meeting_address if seller else ""
     return d

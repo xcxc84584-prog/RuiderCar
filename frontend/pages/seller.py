@@ -48,7 +48,8 @@ def render():
         new_product_type="general" if new_type_label=="常規商品" else "vehicle"
         if new_product_type=="general":st.caption("常規商品模式：車輛專屬欄位已隱藏。")
         with st.form("new_listing"):
-            data=_data("new_",product_type_override=new_product_type,show_type=False)
+            defaults={"meeting_address":st.session_state.user.get("default_meeting_address","")}
+            data=_data("new_",values=defaults,product_type_override=new_product_type,show_type=False)
             submit=st.form_submit_button("儲存草稿",use_container_width=True)
             if submit:
                 lid,msg=create_draft(uid,data)
@@ -95,11 +96,13 @@ def render():
                     st.caption(f'商品 #{x["id"]}｜狀態：{status_label}｜已扣流量：{x["traffic_cost"]}')
                     if imgs:
                         st.caption(f"商品照片：{len(imgs)}/10（第 1 張為商品卡封面）")
+                        load_detail_images=st.checkbox("載入照片管理預覽",value=False,key=f'load_manage_images_{x["id"]}',help="開啟後才讀取此商品的全部照片")
                         icols=st.columns(min(5,len(imgs)))
                         for ii,img in enumerate(imgs):
                             with icols[ii%len(icols)]:
-                                source=image_source(img)
-                                if source is not None:st.image(source,use_container_width=True)
+                                if load_detail_images:
+                                    source=image_source(img)
+                                    if source is not None:st.image(source,use_container_width=True)
                                 st.caption(f"#{ii+1}"+(" 封面" if ii==0 else ""))
                                 a,b,c=st.columns(3)
                                 if a.button("←",key=f'left_{img["id"]}',disabled=ii==0):

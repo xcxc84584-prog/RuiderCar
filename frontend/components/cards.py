@@ -19,6 +19,7 @@ def vehicle_card(x,show_image=True):
     else:
         st.caption(f'常規商品｜{x["location"]}')
     st.caption(f'賣家：{x.get("seller_name","")}｜{x.get("seller_email","")}｜{x.get("seller_phone","")}')
+    if x.get("seller_default_meeting_address"):st.caption(f'常用交易／看貨地址：{x["seller_default_meeting_address"]}')
     current=st.session_state.get("user")
     if current and current.get("role")=="admin":
         reason=st.text_input("強制移除原因",key=f'admin_remove_reason_{x["id"]}',placeholder="必填；原因會通知賣家")

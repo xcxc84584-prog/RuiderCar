@@ -29,9 +29,9 @@ def login(email,password):
         u=db.scalar(select(User).where(User.email==email.strip().lower()))
         if not u or u.suspended or u.blacklisted:return None
         if not verify_password(password,u.password_hash):return None
-        return {"id":u.id,"name":u.name,"email":u.email,"role":u.role,"traffic_balance":u.traffic_balance}
+        return {"id":u.id,"name":u.name,"email":u.email,"phone":u.phone,"role":u.role,"traffic_balance":u.traffic_balance,"default_meeting_address":u.default_meeting_address or ""}
 def fresh_user(uid):
     with SessionLocal() as db:
         u=db.get(User,uid)
         if not u or u.suspended or u.blacklisted:return None
-        return {"id":u.id,"name":u.name,"email":u.email,"role":u.role,"traffic_balance":u.traffic_balance}
+        return {"id":u.id,"name":u.name,"email":u.email,"phone":u.phone,"role":u.role,"traffic_balance":u.traffic_balance,"default_meeting_address":u.default_meeting_address or ""}

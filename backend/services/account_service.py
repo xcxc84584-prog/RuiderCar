@@ -26,7 +26,7 @@ def close_account(uid,password):
         db.commit()
         return True,"帳號已註銷"
 
-def update_account_info(uid,email,phone):
+def update_account_info(uid,email,phone,default_meeting_address=''):
     email=email.strip().lower();phone=phone.strip()
     if not email or not phone:return False,"Email、電話不可空白",None
     if "@" not in email or "." not in email.split("@")[-1]:return False,"Email 格式不正確",None
@@ -37,6 +37,6 @@ def update_account_info(uid,email,phone):
         if email_owner:return False,"此 Email 已被其他帳號使用",None
         phone_owner=db.scalar(select(User).where(User.phone==phone,User.id!=uid))
         if phone_owner:return False,"此電話已被其他帳號使用",None
-        u.email=email;u.phone=phone
+        u.email=email;u.phone=phone;u.default_meeting_address=str(default_meeting_address or '').strip()
         db.commit()
-        return True,"帳戶訊息已更新",{"id":u.id,"name":u.name,"email":u.email,"role":u.role,"traffic_balance":u.traffic_balance}
+        return True,"帳戶訊息已更新",{"id":u.id,"name":u.name,"email":u.email,"phone":u.phone,"role":u.role,"traffic_balance":u.traffic_balance,"default_meeting_address":u.default_meeting_address or ""}

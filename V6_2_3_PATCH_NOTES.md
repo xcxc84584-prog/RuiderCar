@@ -1,0 +1,13 @@
+# RuiderCar v6.2.3
+- Added user-selectable light/dark mode in the sidebar.
+- Homepage image loading changed to page-scoped lazy loading: max 9 products per page, only cover images for the current page are fetched from PostgreSQL.
+- Listing image metadata no longer includes image BLOBs; image bytes are queried only when an image is actually rendered.
+- Product detail initially loads only the cover; additional gallery images require explicit expand/load toggle.
+- Seller image-management preview also requires explicit load toggle for all images.
+- Removed homepage `僅顯示車輛商品`.
+- Homepage no-image mode no longer uses a dataframe + product-ID selector; each text card has its own `查看` button.
+- Added `常用交易／看貨地址` to user accounts.
+- Account settings can edit the default address.
+- New product drafts automatically prefill the user's default address.
+- Seller default address is displayed on public product cards.
+- Automatic migration adds `users.default_meeting_address`; no manual SQL is required.
