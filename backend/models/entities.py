@@ -173,6 +173,7 @@ class IpAddressRecord(Base):
     peak_requests_per_minute:Mapped[int]=mapped_column(Integer,default=0)
     rate_window_started:Mapped[datetime|None]=mapped_column(DateTime,nullable=True,index=True)
     rate_window_count:Mapped[int]=mapped_column(Integer,default=0)
+    custom_request_limit:Mapped[int|None]=mapped_column(Integer,nullable=True)
 
 class IpActivityLog(Base):
     __tablename__="ip_activity_logs"

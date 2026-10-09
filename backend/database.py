@@ -42,7 +42,8 @@ def init_db():
                 "ALTER TABLE listing_images ADD COLUMN IF NOT EXISTS mime_type VARCHAR(60) NOT NULL DEFAULT 'image/jpeg'",
                 "ALTER TABLE login_sessions ADD COLUMN IF NOT EXISTS ip_address VARCHAR(64) NOT NULL DEFAULT ''",
                 "ALTER TABLE ip_address_records ADD COLUMN IF NOT EXISTS rate_window_started TIMESTAMP NULL",
-                "ALTER TABLE ip_address_records ADD COLUMN IF NOT EXISTS rate_window_count INTEGER NOT NULL DEFAULT 0"
+                "ALTER TABLE ip_address_records ADD COLUMN IF NOT EXISTS rate_window_count INTEGER NOT NULL DEFAULT 0",
+                "ALTER TABLE ip_address_records ADD COLUMN IF NOT EXISTS custom_request_limit INTEGER NULL"
             ]
             for sql in statements:conn.execute(text(sql))
         elif dialect=="sqlite":
@@ -52,7 +53,7 @@ def init_db():
                 "listings":{"published_at":"DATETIME","expires_at":"DATETIME","listing_time_fee":"INTEGER NOT NULL DEFAULT 0","refunded_time_fee":"INTEGER NOT NULL DEFAULT 0","product_type":"VARCHAR(20) NOT NULL DEFAULT 'vehicle'"},
                 "listing_images":{"image_data":"BLOB","mime_type":"VARCHAR(60) NOT NULL DEFAULT 'image/jpeg'"},
                 "login_sessions":{"ip_address":"VARCHAR(64) NOT NULL DEFAULT ''"},
-                "ip_address_records":{"rate_window_started":"DATETIME","rate_window_count":"INTEGER NOT NULL DEFAULT 0"}
+                "ip_address_records":{"rate_window_started":"DATETIME","rate_window_count":"INTEGER NOT NULL DEFAULT 0","custom_request_limit":"INTEGER"}
             }
             for table,cols in additions.items():
                 for name,ddl in cols.items():

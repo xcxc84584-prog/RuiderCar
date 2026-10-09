@@ -3,7 +3,7 @@ from backend.services.admin_service import settings,save_setting,save_settings,u
 from backend.services.message_service import admin_messages,reply_admin,set_admin_message_status,delete_admin_messages,bulk_admin_message_status
 from backend.services.traffic_service import pending,approve,reject
 from backend.services.backup_service import make_backup
-from backend.services.ip_service import admin_ip_rows,admin_set_ip_status,ip_history,export_ip_log_csv
+from backend.services.ip_service import admin_ip_rows,admin_set_ip_status,ip_history,export_ip_log_csv,delete_ip_log,delete_ip_logs_for_ip,clear_ip_logs,greylist_history_ips,delete_greylist_history,ip_diagnostics,client_ip_from_streamlit,admin_set_ip_request_limit
 
 def render():
     if st.session_state.user.get("role")!="admin":st.error("沒有管理員權限");return
@@ -163,6 +163,10 @@ def render():
                 st.success(f"已拒絕 {done} 筆申請");st.rerun()
     with tabs[5]:
         st.subheader("IP 管理")
+        diag=ip_diagnostics(client_ip_from_streamlit(st))
+        if diag["security_usable"]:st.success(f'目前 Client IP：{diag["ip"]}｜IP 安全控制可運作')
+        else:st.warning(f'目前 Client IP：{diag["ip"]}｜安全降級模式：{diag["reason"]}')
+        st.caption("若 Streamlit Cloud 僅提供 127.0.0.1，系統仍記錄診斷流量，但不會以該 localhost 執行灰名單、黑名單自動封禁或 50-IP 排隊，避免誤封所有訪客。")
         c1,c2=st.columns([3,1])
         ip_keyword=c1.text_input("搜尋 IP",key="admin_ip_search").strip()
         ip_status=c2.selectbox("狀態",["all","normal","whitelist","greylist","blacklist"],key="admin_ip_status")
@@ -174,6 +178,15 @@ def render():
                 st.write(f'累計請求：{r["request_count"]}｜最高：{r["peak"]} requests/min')
                 if r["reason"]:st.warning(f'原因：{r["reason"]}')
                 if r["greylisted_until"]:st.caption(f'灰名單至：{r["greylisted_until"]}')
+                global_limit=int(settings().get("ip_request_limit_per_minute","180"))
+                if r.get("custom_request_limit") is None:st.info(f'目前流量上限：{global_limit} requests/min（跟隨全站預設）')
+                else:st.info(f'目前流量上限：{r["custom_request_limit"]} requests/min（此 IP 自訂）｜全站預設：{global_limit}')
+                rl1,rl2=st.columns([2,1])
+                custom_limit=rl1.number_input("此 IP 自訂流量上限（requests/min）",min_value=1,max_value=1000000,value=int(r.get("custom_request_limit") or global_limit),step=10,key=f'ip_rate_limit_{r["ip"]}')
+                if rl1.button("更新此 IP 流量上限",key=f'ip_rate_save_{r["ip"]}',width="stretch"):
+                    ok,msg=admin_set_ip_request_limit(st.session_state.user["id"],r["ip"],custom_limit);(st.success if ok else st.error)(msg);st.rerun()
+                if rl2.button("恢復全站預設",key=f'ip_rate_reset_{r["ip"]}',width="stretch"):
+                    ok,msg=admin_set_ip_request_limit(st.session_state.user["id"],r["ip"],None);(st.success if ok else st.error)(msg);st.rerun()
                 a,b,c=st.columns(3)
                 if a.button("加入黑名單",key=f'ip_black_{r["ip"]}',width="stretch"):
                     ok,msg=admin_set_ip_status(st.session_state.user["id"],r["ip"],"blacklist");(st.success if ok else st.error)(msg);st.rerun()
@@ -182,9 +195,39 @@ def render():
                 if c.button("恢復一般",key=f'ip_normal_{r["ip"]}',width="stretch"):
                     ok,msg=admin_set_ip_status(st.session_state.user["id"],r["ip"],"normal");(st.success if ok else st.error)(msg);st.rerun()
                 hist=ip_history(st.session_state.user["id"],r["ip"],100)
-                if hist:st.dataframe(hist,width="stretch",hide_index=True)
+                if hist:
+                    st.dataframe(hist,width="stretch",hide_index=True)
+                    ids=[x["ID"] for x in hist if x["事件"]!="GREYLIST"]
+                    if ids:
+                        selected=st.selectbox("選擇要刪除的一般 LOG ID",ids,key=f'log_delete_select_{r["ip"]}')
+                        if st.button("刪除選取 LOG",key=f'log_delete_{r["ip"]}'):
+                            ok,msg=delete_ip_log(st.session_state.user["id"],selected);(st.success if ok else st.error)(msg);st.rerun()
+                    if st.checkbox("確認刪除此 IP 的一般 LOG",key=f'confirm_ip_logs_{r["ip"]}'):
+                        if st.button("刪除此 IP 一般 LOG",key=f'delete_ip_logs_{r["ip"]}',type="primary"):
+                            ok,msg=delete_ip_logs_for_ip(st.session_state.user["id"],r["ip"]);(st.success if ok else st.error)(msg);st.rerun()
+        st.divider();st.subheader("灰名單歷史")
+        st.caption("灰名單歷史不受一般 IP LOG 保存天數影響，只會在管理員主動刪除時移除。非展開狀態只顯示最近 1 筆。")
+        grey=greylist_history_ips(st.session_state.user["id"])
+        if not grey:st.info("目前沒有灰名單歷史。")
+        for g in grey:
+            latest=g["latest"]
+            st.markdown(f'**{g["ip"]}**｜累計 {g["count"]} 次｜最近：{latest["time"]}｜{latest["detail"]}')
+            with st.expander("展開全部灰名單歷史"):
+                st.dataframe(g["history"],width="stretch",hide_index=True)
+                gids=[x["id"] for x in g["history"]]
+                gid=st.selectbox("選擇灰名單歷史 ID",gids,key=f'grey_id_{g["ip"]}')
+                x1,x2=st.columns(2)
+                if x1.button("刪除選取灰名單歷史",key=f'grey_del_one_{g["ip"]}',width="stretch"):
+                    ok,msg=delete_greylist_history(st.session_state.user["id"],log_id=gid);(st.success if ok else st.error)(msg);st.rerun()
+                if x2.checkbox("確認刪除此 IP 全部灰名單歷史",key=f'grey_confirm_all_{g["ip"]}'):
+                    if st.button("刪除此 IP 全部灰名單歷史",key=f'grey_del_all_{g["ip"]}',type="primary",width="stretch"):
+                        ok,msg=delete_greylist_history(st.session_state.user["id"],ip=g["ip"]);(st.success if ok else st.error)(msg);st.rerun()
+        st.divider()
         name,data=export_ip_log_csv(st.session_state.user["id"])
         st.download_button("下載 IP LOG (.csv)",data=data,file_name=name,mime="text/csv",width="stretch")
+        if st.checkbox("我確認要清除全部一般 IP LOG（不含灰名單歷史）",key="confirm_clear_ip_logs"):
+            if st.button("清空全部一般 IP LOG",type="primary",width="stretch"):
+                ok,msg=clear_ip_logs(st.session_state.user["id"]);(st.success if ok else st.error)(msg);st.rerun()
     with tabs[6]:
         notice=st.session_state.pop("system_settings_notice",None)
         if notice:st.success(notice)
