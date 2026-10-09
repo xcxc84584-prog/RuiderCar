@@ -1,4 +1,4 @@
-from sqlalchemy import select
+from sqlalchemy import select,func
 from backend.database import SessionLocal
 from backend.models.entities import Message,AdminMessage,User
 def _is_admin(db,uid):
@@ -16,6 +16,10 @@ def inbox(uid,keyword=""):
             if k and k not in str(u.id).lower() and k not in u.email.lower() and k not in u.phone.lower():continue
             d={c.name:getattr(m,c.name) for c in m.__table__.columns};d.update({"sender_user_id":u.id,"sender_name":u.name,"sender_email":u.email,"sender_phone":u.phone});out.append(d)
         return out
+def unread_count(uid):
+    with SessionLocal() as db:
+        return int(db.scalar(select(func.count(Message.id)).where(Message.receiver_id==uid,Message.status=="未讀")) or 0)
+
 def set_message_status(uid,mid,status):
     if status not in ("未讀","已讀"):return False
     with SessionLocal() as db:

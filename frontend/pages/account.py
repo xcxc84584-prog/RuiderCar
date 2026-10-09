@@ -45,8 +45,9 @@ def render_settings():
     email=st.text_input("Email",value=u.get("email",""),key="settings_email")
     phone=st.text_input("電話",value=u.get("phone",""),key="settings_phone")
     default_meeting_address=st.text_input("常用交易／看貨地址",value=u.get("default_meeting_address",""),key="settings_default_meeting_address",placeholder="建立商品草稿時會自動帶入")
+    unread_mail_notifications=st.checkbox("瀏覽商品時提醒我有未讀信件",value=bool(u.get("unread_mail_notifications",True)),key="settings_unread_mail_notifications")
     if st.button("儲存帳戶訊息",type="primary",use_container_width=True):
-        ok,msg,new_user=update_account_info(u["id"],email,phone,default_meeting_address)
+        ok,msg,new_user=update_account_info(u["id"],email,phone,default_meeting_address,unread_mail_notifications)
         (st.success if ok else st.error)(msg)
         if ok:
             st.session_state.user=new_user

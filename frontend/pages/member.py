@@ -94,8 +94,10 @@ def mailbox():
         c0,c1=st.columns([0.08,0.92])
         if c0.checkbox("選取",key=f'mail_select_{m["id"]}',label_visibility="collapsed"):selected.append(m["id"])
         with c1:
-            label=f'#{m["id"]} [{m["status"]}] {m["subject"]}｜{m["sender_name"]}'
-            with st.expander(label):
+            status=m.get("status","")
+            status_color="#ef4444" if status=="未讀" else ("#22c55e" if status=="已讀" else "#eab308")
+            st.markdown(f'<span style="color:{status_color};font-weight:800">● {status}</span>　#{m["id"]} {m["subject"]}｜{m["sender_name"]}',unsafe_allow_html=True)
+            with st.expander("查看信件內容"):
                 st.caption(f'使用者 ID：{m["sender_user_id"]}｜帳號名：{m["sender_name"]}｜信箱：{m["sender_email"]}｜電話：{m["sender_phone"]}')
                 st.caption(f'寄送時間：{m["created_at"]}'+(f'｜商品 #{m["listing_id"]}' if m["listing_id"] else ""));st.write(m["body"])
                 c1s,c2s=st.columns(2);new_status=c1s.selectbox("信件狀態",["未讀","已讀"],index=0 if m["status"]=="未讀" else 1,key=f'mstatus_{m["id"]}')

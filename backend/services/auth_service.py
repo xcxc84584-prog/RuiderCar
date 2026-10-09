@@ -9,7 +9,7 @@ def setting(db,key,default):
     x=db.get(SystemSetting,key)
     return x.value if x else str(default)
 def _public_user(u):
-    return {"id":u.id,"name":u.name,"email":u.email,"phone":u.phone,"role":u.role,"traffic_balance":u.traffic_balance,"default_meeting_address":u.default_meeting_address or "","registration_type":u.registration_type or "normal","account_status":u.account_status or "active"}
+    return {"id":u.id,"name":u.name,"email":u.email,"phone":u.phone,"role":u.role,"traffic_balance":u.traffic_balance,"default_meeting_address":u.default_meeting_address or "","registration_type":u.registration_type or "normal","account_status":u.account_status or "active","unread_mail_notifications":bool(u.unread_mail_notifications)}
 def register(name,email,phone,password,registration_type="normal"):
     name=name.strip();email=email.strip().lower();phone=phone.strip();registration_type=str(registration_type or "normal").strip().lower()
     if registration_type not in ("normal","authorized"):return False,"註冊類型不正確"
