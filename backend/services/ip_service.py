@@ -2,7 +2,7 @@ import csv,io,ipaddress,secrets
 from datetime import timedelta
 from sqlalchemy import select,func,delete,text
 from backend.database import SessionLocal
-from backend.models.entities import IpAddressRecord,IpActivityLog,User
+from backend.models.entities import IpAddressRecord,IpActivityLog,User,Listing,ListingImage
 from backend.models.session import LoginSession
 from backend.services.admin_service import settings
 from backend.utils.timezone import utc_now,taipei_now,to_taipei,taipei_text
@@ -94,6 +94,11 @@ def touch_ip(ip,user_id=None):
             db.add(IpActivityLog(ip_address=ip,user_id=user_id,event="GREYLIST_EXPIRED",created_at=now))
         if cap["usable"] and rec.status=="blacklist":
             rec.last_seen=now;db.commit();return {"allowed":False,"status":"blacklist","queue_position":0,"rate":0}
+        current_user=db.get(User,user_id) if user_id is not None else None
+        admin_exempt=bool(current_user and current_user.role=="admin" and not current_user.suspended and not current_user.blacklisted and (current_user.account_status or "active")=="active")
+        if admin_exempt and rec.status=="greylist":
+            rec.status="normal";rec.greylisted_until=None;rec.status_reason="";rec.queued_at=None
+            db.add(IpActivityLog(ip_address=ip,user_id=user_id,event="ADMIN_RATE_EXEMPT",detail="Administrator automatic rate-limit exemption",created_at=now))
         if cap["usable"] and rec.status=="greylist" and rec.greylisted_until and rec.greylisted_until>now:
             rec.last_seen=now;db.commit();return {"allowed":False,"status":"greylist","until":rec.greylisted_until,"reason":rec.status_reason,"queue_position":0,"rate":0}
         if not rec.rate_window_started or now-rec.rate_window_started>=timedelta(minutes=1):rec.rate_window_started=now;rec.rate_window_count=0
@@ -103,11 +108,11 @@ def touch_ip(ip,user_id=None):
             if _visit_log_due(db,ip,now):db.add(IpActivityLog(ip_address=ip,user_id=user_id,event="VISIT",detail="IP security safe mode",created_at=now))
             db.commit();return {"allowed":True,"status":"diagnostic","queue_position":0,"rate":rate,"security_usable":False,"security_reason":cap["reason"]}
         effective_rate_limit=rec.custom_request_limit if rec.custom_request_limit is not None else rate_limit
-        if rate>effective_rate_limit:
+        if (not admin_exempt) and rate>effective_rate_limit:
             rec.status="greylist";rec.greylisted_until=now+timedelta(minutes=30);rec.status_reason=f"超過 {effective_rate_limit} requests/min";rec.queued_at=None
             _revoke_ip_sessions(db,ip);db.add(IpActivityLog(ip_address=ip,user_id=user_id,event="GREYLIST",detail=rec.status_reason,created_at=now));db.commit()
             return {"allowed":False,"status":"greylist","until":rec.greylisted_until,"reason":rec.status_reason,"queue_position":0,"rate":rate}
-        if rec.status!="whitelist":
+        if rec.status!="whitelist" and not admin_exempt:
             active_cut=now-timedelta(minutes=5)
             active=db.scalar(select(func.count(IpAddressRecord.ip_address)).where(IpAddressRecord.ip_address!=ip,IpAddressRecord.status.in_(["normal"]),IpAddressRecord.last_seen>=active_cut,IpAddressRecord.queued_at.is_(None))) or 0
             if rec.queued_at is not None or active>=active_limit:
@@ -116,7 +121,7 @@ def touch_ip(ip,user_id=None):
                 if active<active_limit and ahead==0:rec.queued_at=None;db.add(IpActivityLog(ip_address=ip,user_id=user_id,event="QUEUE_ADMIT",created_at=now))
                 else:db.commit();return {"allowed":False,"status":"queue","queue_position":int(ahead)+1,"rate":rate}
         if _visit_log_due(db,ip,now):db.add(IpActivityLog(ip_address=ip,user_id=user_id,event="VISIT",created_at=now))
-        db.commit();return {"allowed":True,"status":rec.status,"queue_position":0,"rate":rate}
+        db.commit();return {"allowed":True,"status":rec.status,"queue_position":0,"rate":rate,"effective_limit":None if admin_exempt else effective_rate_limit,"custom_limit":rec.custom_request_limit is not None}
 
 def admin_ip_rows(admin_uid,keyword="",status="all",limit=300):
     with SessionLocal() as db:
@@ -130,7 +135,22 @@ def admin_ip_rows(admin_uid,keyword="",status="all",limit=300):
             if status!="all" and shown!=status:continue
             rate=x.rate_window_count or 0
             if not x.rate_window_started or now-x.rate_window_started>=timedelta(minutes=1):rate=0
-            out.append({"ip":x.ip_address,"status":shown,"first_seen":to_taipei(x.first_seen),"last_seen":to_taipei(x.last_seen),"requests/min":rate,"peak":x.peak_requests_per_minute or 0,"request_count":x.request_count or 0,"reason":x.status_reason or "","greylisted_until":to_taipei(x.greylisted_until),"queued_at":to_taipei(x.queued_at),"custom_request_limit":x.custom_request_limit,"effective_request_limit":x.custom_request_limit if x.custom_request_limit is not None else _ints()[0]})
+            account_id=None
+            try:
+                if "(account:" in x.ip_address:account_id=int(x.ip_address.split("(account:",1)[1].rstrip(")"))
+            except (TypeError,ValueError):account_id=None
+            linked=db.get(User,account_id) if account_id is not None else None
+            admin_exempt=bool(linked and linked.role=="admin")
+            storage_used=0
+            storage_limit=None
+            storage_custom=False
+            if linked:
+                storage_used=int(db.scalar(select(func.coalesce(func.sum(func.length(ListingImage.image_data)),0)).join(Listing,Listing.id==ListingImage.listing_id).where(Listing.seller_id==linked.id,ListingImage.image_data.is_not(None))) or 0)
+                storage_custom=linked.custom_storage_limit_mb is not None
+                if not admin_exempt:
+                    try:storage_limit=int(linked.custom_storage_limit_mb or settings().get("default_storage_limit_mb","100"))
+                    except:storage_limit=100
+            out.append({"ip":x.ip_address,"status":shown,"first_seen":to_taipei(x.first_seen),"last_seen":to_taipei(x.last_seen),"requests/min":rate,"peak":x.peak_requests_per_minute or 0,"request_count":x.request_count or 0,"reason":x.status_reason or "","greylisted_until":to_taipei(x.greylisted_until),"queued_at":to_taipei(x.queued_at),"custom_request_limit":x.custom_request_limit,"effective_request_limit":None if admin_exempt else (x.custom_request_limit if x.custom_request_limit is not None else _ints()[0]),"admin_exempt":admin_exempt,"account_id":account_id,"storage_used_mb":round(storage_used/(1024*1024),2),"storage_limit_mb":storage_limit,"storage_custom":storage_custom})
         return out
 
 def admin_set_ip_status(admin_uid,ip,status):

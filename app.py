@@ -6,6 +6,8 @@ from frontend.auth_session import restore_browser_session,logout_browser_session
 from backend.services.auth_service import fresh_user
 from backend.services.account_service import update_theme_preference
 from backend.services.ip_service import client_ip_from_streamlit,client_identity,touch_ip,cleanup_old_logs
+from backend.services.admin_service import settings
+from backend.services.storage_service import storage_status
 import time,secrets
 from datetime import datetime
 from backend.utils.timezone import utc_now
@@ -97,6 +99,24 @@ with st.sidebar:
         if st.button("登入",width="stretch"):st.session_state.page="登入";st.session_state.show_loading=True;st.rerun()
         if st.button("註冊",width="stretch"):st.session_state.page="註冊";st.session_state.show_loading=True;st.rerun()
         if st.button("輔助與說明",width="stretch"):st.session_state.page="輔助與說明";st.session_state.show_loading=True;st.rerun()
+    st.divider()
+    st.markdown("#### 📊 資源使用狀態")
+    current_rate=int(ip_gate.get("rate",0) or 0)
+    if u:
+        if u.get("role")=="admin":
+            st.caption(f"IP 流量：{current_rate} req/min / Unlimited")
+            ss=storage_status(u["id"])
+            st.caption(f'資料量：{ss["used_mb"]:.2f} MB / Unlimited')
+        else:
+            rate_limit=int(ip_gate.get("effective_limit") or settings().get("ip_request_limit_per_minute","180"))
+            st.caption(f"IP 流量：{current_rate} / {rate_limit} req/min")
+            ss=storage_status(u["id"])
+            storage_tag="（個別限制）" if ss.get("custom") else ""
+            st.caption(f'資料量：{ss["used_mb"]:.2f} / {ss["limit_mb"]} MB {storage_tag}')
+    else:
+        rate_limit=int(settings().get("ip_request_limit_per_minute","180"))
+        st.caption(f"IP 流量：{current_rate} / {rate_limit} req/min")
+        st.caption("資料量：未登入 / -- MB")
 if _lp:_lp.progress(80,text="正在載入內容…")
 route()
 if _lp:_lp.progress(100,text="載入完成")

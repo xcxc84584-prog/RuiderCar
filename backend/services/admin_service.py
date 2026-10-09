@@ -26,7 +26,8 @@ DEFAULTS={
     "help_guide":"## 操作說明\n管理員可在系統設定中編輯此內容。",
     "ip_request_limit_per_minute":"180",
     "active_ip_limit":"50",
-    "ip_log_retention_days":"7"
+    "ip_log_retention_days":"7",
+    "default_storage_limit_mb":"100"
 }
 def seed_settings():
     with SessionLocal() as db:

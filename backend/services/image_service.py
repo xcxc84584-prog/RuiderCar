@@ -4,6 +4,7 @@ from functools import lru_cache
 from sqlalchemy import select
 from backend.database import SessionLocal,PROJECT_ROOT
 from backend.models.entities import Listing,ListingImage
+from backend.services.storage_service import storage_precheck,delete_oldest_images_to_fit
 UPLOAD_ROOT=PROJECT_ROOT/"storage"/"uploads"/"listings"
 UPLOAD_ROOT.mkdir(parents=True,exist_ok=True)
 ALLOWED_EXT={".jpg",".jpeg",".png",".webp"}
@@ -17,7 +18,7 @@ def list_images(listing_id):
     with SessionLocal() as db:
         xs=db.scalars(select(ListingImage).where(ListingImage.listing_id==listing_id).order_by(ListingImage.sort_order,ListingImage.id)).all()
         return [{"id":x.id,"listing_id":x.listing_id,"file_path":x.file_path,"image_data":x.image_data,"mime_type":x.mime_type,"sort_order":x.sort_order} for x in xs]
-def add_uploaded_images(uid,listing_id,uploads):
+def add_uploaded_images(uid,listing_id,uploads,overwrite_oldest=False):
     uploads=list(uploads or [])
     if not uploads:return True,"沒有新增照片"
     with SessionLocal() as db:
@@ -25,12 +26,23 @@ def add_uploaded_images(uid,listing_id,uploads):
         if not listing or listing.seller_id!=uid:return False,"商品不存在或沒有權限"
         old=db.scalars(select(ListingImage).where(ListingImage.listing_id==listing_id).order_by(ListingImage.sort_order)).all()
         if len(old)+len(uploads)>MAX_IMAGES:return False,f"每個商品最多 {MAX_IMAGES} 張照片"
-        order=len(old)+1
+        prepared=[]
         for up in uploads:
             ext=_ext(getattr(up,"name",""))
             if not ext:return False,"只允許 JPG、JPEG、PNG、WEBP"
             data=up.getvalue()
             if len(data)>MAX_IMAGE_BYTES:return False,"單張照片不可超過 5 MB"
+            prepared.append((ext,data))
+        incoming=sum(len(data) for _,data in prepared)
+        fits,quota=storage_precheck(uid,incoming)
+        if not fits:
+            if not overwrite_oldest:
+                return False,f'STORAGE_LIMIT|目前 {quota["used_mb"]:.2f} MB / {quota["limit_mb"]} MB；本次新增 {incoming/(1024*1024):.2f} MB'
+            ok,removed=delete_oldest_images_to_fit(uid,incoming)
+            if not ok:return False,"沒有足夠的可刪除舊圖片來騰出空間"
+            old=db.scalars(select(ListingImage).where(ListingImage.listing_id==listing_id).order_by(ListingImage.sort_order)).all()
+        order=len(old)+1
+        for ext,data in prepared:
             # PostgreSQL/Supabase is the durable source. file_path remains only for legacy compatibility.
             db.add(ListingImage(listing_id=listing_id,file_path="",image_data=data,mime_type=MIME[ext],sort_order=order))
             order+=1

@@ -112,9 +112,23 @@ def render():
                                 if c.button("刪",key=f'delimg_{img["id"]}'):
                                     delete_image(uid,img["id"]);st.rerun()
                     uploads=st.file_uploader("新增商品照片（最多 10 張；第 1 張為封面）",type=["jpg","jpeg","png","webp"],accept_multiple_files=True,key=f'photos_{x["id"]}')
+                    quota_key=f'storage_overwrite_{x["id"]}'
                     if uploads and st.button("儲存新增照片",key=f'savephotos_{x["id"]}',width="stretch"):
                         ok,msg=add_uploaded_images(uid,x["id"],uploads)
-                        st.session_state.seller_flash=("success" if ok else "error",msg);st.rerun()
+                        if (not ok) and msg.startswith("STORAGE_LIMIT|"):
+                            st.session_state[quota_key]=msg.split("|",1)[1]
+                        else:
+                            st.session_state.pop(quota_key,None);st.session_state.seller_flash=("success" if ok else "error",msg)
+                        st.rerun()
+                    if uploads and st.session_state.get(quota_key):
+                        st.warning("資料量限制已達上限："+st.session_state[quota_key])
+                        st.caption("是否覆蓋最舊的可刪除商品圖片以騰出空間？此操作會永久刪除舊圖片。")
+                        q1,q2=st.columns(2)
+                        if q1.button("覆蓋最舊資料並繼續",key=f'overwrite_storage_{x["id"]}',type="primary",width="stretch"):
+                            ok,msg=add_uploaded_images(uid,x["id"],uploads,overwrite_oldest=True)
+                            st.session_state.pop(quota_key,None);st.session_state.seller_flash=("success" if ok else "error",msg);st.rerun()
+                        if q2.button("取消",key=f'cancel_storage_{x["id"]}',width="stretch"):
+                            st.session_state.pop(quota_key,None);st.rerun()
                     if x["status"]=="draft":
                         cost=publication_cost(x["id"])
                         st.info(f'正式上架預計需要 {cost} 流量；目前餘額 {st.session_state.user["traffic_balance"]}。')

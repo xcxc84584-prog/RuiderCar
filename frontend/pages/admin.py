@@ -4,6 +4,7 @@ from backend.services.message_service import admin_messages,reply_admin,set_admi
 from backend.services.traffic_service import pending,approve,reject
 from backend.services.backup_service import make_backup
 from backend.services.ip_service import admin_ip_rows,admin_set_ip_status,ip_history,export_ip_log_csv,delete_ip_log,delete_ip_logs_for_ip,clear_ip_logs,greylist_history_ips,delete_greylist_history,ip_diagnostics,client_ip_from_streamlit,admin_set_ip_request_limit
+from backend.services.storage_service import admin_set_account_storage_limit
 
 def render():
     if st.session_state.user.get("role")!="admin":st.error("沒有管理員權限");return
@@ -179,14 +180,27 @@ def render():
                 if r["reason"]:st.warning(f'原因：{r["reason"]}')
                 if r["greylisted_until"]:st.caption(f'灰名單至：{r["greylisted_until"]}')
                 global_limit=int(settings().get("ip_request_limit_per_minute","180"))
-                if r.get("custom_request_limit") is None:st.info(f'目前流量上限：{global_limit} requests/min（跟隨全站預設）')
-                else:st.info(f'目前流量上限：{r["custom_request_limit"]} requests/min（此 IP 自訂）｜全站預設：{global_limit}')
-                rl1,rl2=st.columns([2,1])
-                custom_limit=rl1.number_input("此 IP 自訂流量上限（requests/min）",min_value=1,max_value=1000000,value=int(r.get("custom_request_limit") or global_limit),step=10,key=f'ip_rate_limit_{r["ip"]}')
-                if rl1.button("更新此 IP 流量上限",key=f'ip_rate_save_{r["ip"]}',width="stretch"):
-                    ok,msg=admin_set_ip_request_limit(st.session_state.user["id"],r["ip"],custom_limit);(st.success if ok else st.error)(msg);st.rerun()
-                if rl2.button("恢復全站預設",key=f'ip_rate_reset_{r["ip"]}',width="stretch"):
-                    ok,msg=admin_set_ip_request_limit(st.session_state.user["id"],r["ip"],None);(st.success if ok else st.error)(msg);st.rerun()
+                if r.get("admin_exempt"):
+                    st.success("🛡️ Administrator－流量限制、資料量限制與 Active Queue 豁免；Request Rate / LOG 仍正常記錄。")
+                    st.info(f'資料量：{r.get("storage_used_mb",0):.2f} MB / Unlimited')
+                else:
+                    if r.get("custom_request_limit") is None:st.info(f'目前流量上限：{global_limit} requests/min（跟隨全站預設）')
+                    else:st.info(f'目前流量上限：{r["custom_request_limit"]} requests/min（此 IP 自訂）｜全站預設：{global_limit}')
+                    rl1,rl2=st.columns([2,1])
+                    custom_limit=rl1.number_input("此 IP 自訂流量上限（requests/min）",min_value=1,max_value=1000000,value=int(r.get("custom_request_limit") or global_limit),step=10,key=f'ip_rate_limit_{r["ip"]}')
+                    if rl1.button("更新此 IP 流量上限",key=f'ip_rate_save_{r["ip"]}',width="stretch"):
+                        ok,msg=admin_set_ip_request_limit(st.session_state.user["id"],r["ip"],custom_limit);(st.success if ok else st.error)(msg);st.rerun()
+                    if rl2.button("恢復全站預設",key=f'ip_rate_reset_{r["ip"]}',width="stretch"):
+                        ok,msg=admin_set_ip_request_limit(st.session_state.user["id"],r["ip"],None);(st.success if ok else st.error)(msg);st.rerun()
+                    if r.get("account_id"):
+                        global_storage=int(settings().get("default_storage_limit_mb","100"))
+                        st.info(f'資料量：{r.get("storage_used_mb",0):.2f} / {r.get("storage_limit_mb",global_storage)} MB'+("（個別限制）" if r.get("storage_custom") else "（跟隨全站預設）"))
+                        sl1,sl2=st.columns([2,1])
+                        storage_limit=sl1.number_input("此 Account 自訂資料量上限（MB）",min_value=1,max_value=102400,value=int(r.get("storage_limit_mb") or global_storage),step=10,key=f'storage_limit_{r["ip"]}')
+                        if sl1.button("更新此 Account 資料量上限",key=f'storage_save_{r["ip"]}',width="stretch"):
+                            ok,msg=admin_set_account_storage_limit(st.session_state.user["id"],r["account_id"],storage_limit);(st.success if ok else st.error)(msg);st.rerun()
+                        if sl2.button("恢復全站預設",key=f'storage_reset_{r["ip"]}',width="stretch"):
+                            ok,msg=admin_set_account_storage_limit(st.session_state.user["id"],r["account_id"],None);(st.success if ok else st.error)(msg);st.rerun()
                 a,b,c=st.columns(3)
                 if a.button("加入黑名單",key=f'ip_black_{r["ip"]}',width="stretch"):
                     ok,msg=admin_set_ip_status(st.session_state.user["id"],r["ip"],"blacklist");(st.success if ok else st.error)(msg);st.rerun()
@@ -237,6 +251,7 @@ def render():
         ip_request_limit=ic1.number_input("每 IP 最大請求數／分鐘",min_value=10,max_value=100000,value=int(s.get("ip_request_limit_per_minute","180")),step=10)
         active_ip_limit=ic2.number_input("同時 Active IP 上限",min_value=1,max_value=100000,value=int(s.get("active_ip_limit","50")),step=1)
         ip_log_retention_days=ic3.number_input("IP LOG 保存天數",min_value=1,max_value=3650,value=int(s.get("ip_log_retention_days","7")),step=1)
+        default_storage_limit_mb=st.number_input("每 Account 預設資料量限制（MB）",min_value=1,max_value=102400,value=int(s.get("default_storage_limit_mb","100")),step=10)
         st.caption("Active IP：最近 5 分鐘內有活動的 IP。超過請求門檻會進入灰名單 30 分鐘並撤銷該 IP 的登入 Session；白名單只豁免排隊限制。")
         st.divider()
         account_limit=st.number_input("平台帳號數量上限",min_value=1,max_value=100000,value=int(s.get("account_limit","500")),step=10)
@@ -267,7 +282,7 @@ def render():
         help_changelog=st.text_area("更新日誌（支援 Markdown）",value=s.get("help_changelog",""),height=220)
         help_guide=st.text_area("操作說明（支援 Markdown）",value=s.get("help_guide",""),height=260)
         if st.button("儲存系統設定",width="stretch"):
-            values={"ip_request_limit_per_minute":ip_request_limit,"active_ip_limit":active_ip_limit,"ip_log_retention_days":ip_log_retention_days,"account_limit":account_limit,"initial_traffic":initial,"traffic_max":traffic_max,"traffic_min":traffic_min,"traffic_per_100k_month":traffic_per,"admin_email":email,"bank_name":bank,"bank_holder":holder,"transfer_account":account,"transfer_note":transfer_note,"home_hero_title":hero_title,"home_hero_subtitle":hero_subtitle,"home_hero_width":hero_width,"home_hero_height":hero_height,"home_hero_title_size":hero_title_size,"home_hero_subtitle_size":hero_subtitle_size,"help_changelog":help_changelog,"help_guide":help_guide}
+            values={"ip_request_limit_per_minute":ip_request_limit,"active_ip_limit":active_ip_limit,"ip_log_retention_days":ip_log_retention_days,"default_storage_limit_mb":default_storage_limit_mb,"account_limit":account_limit,"initial_traffic":initial,"traffic_max":traffic_max,"traffic_min":traffic_min,"traffic_per_100k_month":traffic_per,"admin_email":email,"bank_name":bank,"bank_holder":holder,"transfer_account":account,"transfer_note":transfer_note,"home_hero_title":hero_title,"home_hero_subtitle":hero_subtitle,"home_hero_width":hero_width,"home_hero_height":hero_height,"home_hero_title_size":hero_title_size,"home_hero_subtitle_size":hero_subtitle_size,"help_changelog":help_changelog,"help_guide":help_guide}
             ok,msg=save_settings(st.session_state.user["id"],values)
             (st.success if ok else st.error)(msg)
             if ok:
