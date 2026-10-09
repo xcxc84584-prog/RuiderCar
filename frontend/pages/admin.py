@@ -30,7 +30,7 @@ def render():
             with st.expander(f'#{u["id"]} [{status}] {u["name"]}｜{u["email"]}'):
                 st.caption(f'電話：{u["phone"]}｜角色：{u["role"]}｜註冊類型：{u.get("registration_type","normal")}｜帳號狀態：{u.get("account_status","active")}｜流量：{u["traffic_balance"]}｜註冊：{u["created_at"]}')
                 if not u["deleted"] and u["id"]!=st.session_state.user["id"]:
-                    if st.button("強制登入／切換成此帳號",key=f'impersonate_{u["id"]}',use_container_width=True):
+                    if st.button("強制登入／切換成此帳號",key=f'impersonate_{u["id"]}',width="stretch"):
                         ok,msg,target=impersonate_user(st.session_state.user["id"],u["id"])
                         if ok:
                             st.session_state.impersonator_admin=st.session_state.user.copy()
@@ -43,13 +43,13 @@ def render():
                 elif u["blacklisted"]:
                     st.error(f'黑名單原因：{u["blacklist_reason"]}')
                     st.caption(f'加入時間：{u["blacklisted_at"]}')
-                    if st.button("解除黑名單",key=f'unblack_{u["id"]}',use_container_width=True):
+                    if st.button("解除黑名單",key=f'unblack_{u["id"]}',width="stretch"):
                         ok,msg=unblacklist_user(admin_uid,u["id"])
                         (st.success if ok else st.error)(msg)
                         if ok:st.rerun()
                 elif u["role"]!="admin":
                     reason=st.text_input("加入黑名單原因",key=f'black_reason_{u["id"]}',placeholder="例如：詐騙疑慮、違反平台規則")
-                    if st.button("加入黑名單",key=f'black_{u["id"]}',type="primary",use_container_width=True):
+                    if st.button("加入黑名單",key=f'black_{u["id"]}',type="primary",width="stretch"):
                         ok,msg=blacklist_user(admin_uid,u["id"],reason)
                         (st.success if ok else st.error)(msg)
                         if ok:st.rerun()
@@ -59,7 +59,7 @@ def render():
                     st.divider()
                     st.error("危險操作：徹底刪除會移除此帳號及其平台關聯資料，無法復原。")
                     confirm=st.checkbox("我確認要永久刪除此帳號及相關資料",key=f'permadelete_confirm_{u["id"]}')
-                    if st.button("徹底刪除帳號",key=f'permadelete_{u["id"]}',type="primary",use_container_width=True,disabled=not confirm):
+                    if st.button("徹底刪除帳號",key=f'permadelete_{u["id"]}',type="primary",width="stretch",disabled=not confirm):
                         ok,msg=permanently_delete_user(st.session_state.user["id"],u["id"])
                         (st.success if ok else st.error)(msg)
                         if ok:st.rerun()
@@ -67,14 +67,14 @@ def render():
             st.divider();st.subheader("批量會員操作")
             batch_reason=st.text_input("批量加入黑名單原因",key="bulk_blacklist_reason")
             b1,b2=st.columns(2)
-            if b1.button(f"批量加入黑名單（{len(selected_users)}）",use_container_width=True):
+            if b1.button(f"批量加入黑名單（{len(selected_users)}）",width="stretch"):
                 ok,msg=bulk_blacklist_users(admin_uid,selected_users,batch_reason);(st.success if ok else st.error)(msg)
                 if ok:st.rerun()
-            if b2.button(f"批量解除黑名單（{len(selected_users)}）",use_container_width=True):
+            if b2.button(f"批量解除黑名單（{len(selected_users)}）",width="stretch"):
                 ok,msg=bulk_unblacklist_users(admin_uid,selected_users);(st.success if ok else st.error)(msg)
                 if ok:st.rerun()
             bulk_delete_confirm=st.checkbox("我確認要永久刪除所有已選會員及其平台關聯資料",key="bulk_permadelete_confirm")
-            if st.button(f"批量徹底刪除帳號（{len(selected_users)}）",disabled=not bulk_delete_confirm,use_container_width=True):
+            if st.button(f"批量徹底刪除帳號（{len(selected_users)}）",disabled=not bulk_delete_confirm,width="stretch"):
                 done=0
                 for target_uid in selected_users:
                     ok,_=permanently_delete_user(st.session_state.user["id"],target_uid);done+=1 if ok else 0
@@ -88,10 +88,10 @@ def render():
                 st.write(f'#{r["id"]}｜{r["name"]}｜{r["email"]}')
                 st.caption(f'電話：{r["phone"]}｜申請時間：{r["created_at"]}')
                 c1,c2=st.columns(2)
-                if c1.button("批准註冊",key=f'authreg_ok_{r["id"]}',type="primary",use_container_width=True):
+                if c1.button("批准註冊",key=f'authreg_ok_{r["id"]}',type="primary",width="stretch"):
                     ok,msg=review_authorized_registration(admin_uid,r["id"],True);(st.success if ok else st.error)(msg)
                     if ok:st.rerun()
-                if c2.button("拒絕註冊",key=f'authreg_no_{r["id"]}',use_container_width=True):
+                if c2.button("拒絕註冊",key=f'authreg_no_{r["id"]}',width="stretch"):
                     ok,msg=review_authorized_registration(admin_uid,r["id"],False);(st.success if ok else st.error)(msg)
                     if ok:st.rerun()
     with tabs[3]:
@@ -111,10 +111,10 @@ def render():
                 idx=statuses.index(m["status"]) if m["status"] in statuses else 0
                 c1,c2=st.columns(2)
                 ns=c1.selectbox("狀態",statuses,index=idx,key=f'ams_{m["id"]}')
-                if c2.button("更新狀態",key=f'amsb_{m["id"]}',use_container_width=True):
+                if c2.button("更新狀態",key=f'amsb_{m["id"]}',width="stretch"):
                     set_admin_message_status(admin_uid,m["id"],ns);st.rerun()
                 r=st.text_area("快速回信",value=m["reply"],key=f'r{m["id"]}')
-                if st.button("回覆並標記已回覆",key=f'rr{m["id"]}',type="primary",use_container_width=True):
+                if st.button("回覆並標記已回覆",key=f'rr{m["id"]}',type="primary",width="stretch"):
                     if reply_admin(admin_uid,m["id"],r):
                         st.session_state.admin_reply_notice="✅ 回覆已送出";st.rerun()
                     else:st.error("回覆內容不可為空或沒有管理員權限")
@@ -122,10 +122,10 @@ def render():
             st.divider();st.subheader("批量通知操作")
             new_bulk_status=st.selectbox("批量狀態",["未讀","已讀","處理中","已回覆","已關閉"],key="bulk_admin_message_status")
             b1,b2=st.columns(2)
-            if b1.button(f"批量更新狀態（{len(selected_admin_messages)}）",use_container_width=True):
+            if b1.button(f"批量更新狀態（{len(selected_admin_messages)}）",width="stretch"):
                 ok,msg=bulk_admin_message_status(admin_uid,selected_admin_messages,new_bulk_status);(st.success if ok else st.error)(msg)
                 if ok:st.rerun()
-            if b2.button(f"批量刪除通知（{len(selected_admin_messages)}）",use_container_width=True):
+            if b2.button(f"批量刪除通知（{len(selected_admin_messages)}）",width="stretch"):
                 ok,msg=delete_admin_messages(admin_uid,selected_admin_messages);(st.success if ok else st.error)(msg)
                 if ok:st.rerun()
     with tabs[4]:
@@ -140,23 +140,23 @@ def render():
                 st.caption(f'申請時間：{r["created_at"]}')
                 if r.get("note"):st.write(f'備註：{r["note"]}')
                 c1,c2=st.columns(2)
-                if c1.button("批准",key=f'ap{r["id"]}',type="primary",use_container_width=True):
+                if c1.button("批准",key=f'ap{r["id"]}',type="primary",width="stretch"):
                     ok,msg=approve(admin_uid,r["id"])
                     (st.success if ok else st.error)(msg)
                     if ok:st.rerun()
-                if c2.button("拒絕",key=f'rj{r["id"]}',use_container_width=True):
+                if c2.button("拒絕",key=f'rj{r["id"]}',width="stretch"):
                     ok,msg=reject(admin_uid,r["id"])
                     (st.success if ok else st.error)(msg)
                     if ok:st.rerun()
         if selected_traffic:
             st.divider();st.subheader("批量流量審核")
             b1,b2=st.columns(2)
-            if b1.button(f"批量批准（{len(selected_traffic)}）",use_container_width=True):
+            if b1.button(f"批量批准（{len(selected_traffic)}）",width="stretch"):
                 done=0
                 for rid in selected_traffic:
                     ok,_=approve(admin_uid,rid);done+=1 if ok else 0
                 st.success(f"已批准 {done} 筆申請");st.rerun()
-            if b2.button(f"批量拒絕（{len(selected_traffic)}）",use_container_width=True):
+            if b2.button(f"批量拒絕（{len(selected_traffic)}）",width="stretch"):
                 done=0
                 for rid in selected_traffic:
                     ok,_=reject(admin_uid,rid);done+=1 if ok else 0
@@ -175,16 +175,16 @@ def render():
                 if r["reason"]:st.warning(f'原因：{r["reason"]}')
                 if r["greylisted_until"]:st.caption(f'灰名單至：{r["greylisted_until"]}')
                 a,b,c=st.columns(3)
-                if a.button("加入黑名單",key=f'ip_black_{r["ip"]}',use_container_width=True):
+                if a.button("加入黑名單",key=f'ip_black_{r["ip"]}',width="stretch"):
                     ok,msg=admin_set_ip_status(st.session_state.user["id"],r["ip"],"blacklist");(st.success if ok else st.error)(msg);st.rerun()
-                if b.button("加入白名單",key=f'ip_white_{r["ip"]}',use_container_width=True):
+                if b.button("加入白名單",key=f'ip_white_{r["ip"]}',width="stretch"):
                     ok,msg=admin_set_ip_status(st.session_state.user["id"],r["ip"],"whitelist");(st.success if ok else st.error)(msg);st.rerun()
-                if c.button("恢復一般",key=f'ip_normal_{r["ip"]}',use_container_width=True):
+                if c.button("恢復一般",key=f'ip_normal_{r["ip"]}',width="stretch"):
                     ok,msg=admin_set_ip_status(st.session_state.user["id"],r["ip"],"normal");(st.success if ok else st.error)(msg);st.rerun()
                 hist=ip_history(st.session_state.user["id"],r["ip"],100)
-                if hist:st.dataframe(hist,use_container_width=True,hide_index=True)
+                if hist:st.dataframe(hist,width="stretch",hide_index=True)
         name,data=export_ip_log_csv(st.session_state.user["id"])
-        st.download_button("下載 IP LOG (.csv)",data=data,file_name=name,mime="text/csv",use_container_width=True)
+        st.download_button("下載 IP LOG (.csv)",data=data,file_name=name,mime="text/csv",width="stretch")
     with tabs[6]:
         notice=st.session_state.pop("system_settings_notice",None)
         if notice:st.success(notice)
@@ -223,7 +223,7 @@ def render():
         st.subheader("輔助與說明設定")
         help_changelog=st.text_area("更新日誌（支援 Markdown）",value=s.get("help_changelog",""),height=220)
         help_guide=st.text_area("操作說明（支援 Markdown）",value=s.get("help_guide",""),height=260)
-        if st.button("儲存系統設定",use_container_width=True):
+        if st.button("儲存系統設定",width="stretch"):
             values={"ip_request_limit_per_minute":ip_request_limit,"active_ip_limit":active_ip_limit,"ip_log_retention_days":ip_log_retention_days,"account_limit":account_limit,"initial_traffic":initial,"traffic_max":traffic_max,"traffic_min":traffic_min,"traffic_per_100k_month":traffic_per,"admin_email":email,"bank_name":bank,"bank_holder":holder,"transfer_account":account,"transfer_note":transfer_note,"home_hero_title":hero_title,"home_hero_subtitle":hero_subtitle,"home_hero_width":hero_width,"home_hero_height":hero_height,"home_hero_title_size":hero_title_size,"home_hero_subtitle_size":hero_subtitle_size,"help_changelog":help_changelog,"help_guide":help_guide}
             ok,msg=save_settings(st.session_state.user["id"],values)
             (st.success if ok else st.error)(msg)
@@ -232,9 +232,9 @@ def render():
                 st.rerun()
     with tabs[7]:
         logs=admin_audit_logs(st.session_state.user["id"])
-        if logs:st.dataframe(logs,use_container_width=True,hide_index=True)
+        if logs:st.dataframe(logs,width="stretch",hide_index=True)
         else:st.info("目前沒有管理員稽核紀錄。")
     with tabs[8]:
         st.warning("Cloud 正式環境請使用外部 PostgreSQL 與持久化物件儲存；本功能提供管理員離線備份。")
         name,data=make_backup(st.session_state.user["id"])
-        st.download_button("備份到本地",data=data,file_name=name,mime="application/zip",use_container_width=True)
+        st.download_button("備份到本地",data=data,file_name=name,mime="application/zip",width="stretch")

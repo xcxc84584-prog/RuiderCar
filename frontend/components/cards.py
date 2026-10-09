@@ -7,7 +7,7 @@ def vehicle_card(x,show_image=True):
     if show_image:
         if imgs:
             source=image_source(imgs[0])
-            if source is not None:st.image(source,use_container_width=True)
+            if source is not None:st.image(source,width="stretch")
         else:
             icon="🚙" if x.get("product_type","vehicle")=="vehicle" else "📦"
             st.markdown(f'<div style="height:180px;border-radius:14px;background:#0d47a1;display:flex;align-items:center;justify-content:center;font-size:44px">{icon}</div>',unsafe_allow_html=True)
@@ -23,8 +23,8 @@ def vehicle_card(x,show_image=True):
     current=st.session_state.get("user")
     if current and current.get("role")=="admin":
         reason=st.text_input("強制移除原因",key=f'admin_remove_reason_{x["id"]}',placeholder="必填；原因會通知賣家")
-        if st.button("管理員強制移除",key=f'admin_remove_{x["id"]}',use_container_width=True):
+        if st.button("管理員強制移除",key=f'admin_remove_{x["id"]}',width="stretch"):
             ok,msg=admin_force_remove(current["id"],x["id"],reason)
             (st.success if ok else st.error)(msg)
             if ok:st.rerun()
-    return st.button("查看商品",key=f'detail_{x["id"]}',use_container_width=True)
+    return st.button("查看商品",key=f'detail_{x["id"]}',width="stretch")

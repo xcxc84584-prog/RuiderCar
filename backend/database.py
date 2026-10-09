@@ -40,16 +40,19 @@ def init_db():
                 "ALTER TABLE listings ADD COLUMN IF NOT EXISTS product_type VARCHAR(20) NOT NULL DEFAULT 'vehicle'",
                 "ALTER TABLE listing_images ADD COLUMN IF NOT EXISTS image_data BYTEA NULL",
                 "ALTER TABLE listing_images ADD COLUMN IF NOT EXISTS mime_type VARCHAR(60) NOT NULL DEFAULT 'image/jpeg'",
-                "ALTER TABLE login_sessions ADD COLUMN IF NOT EXISTS ip_address VARCHAR(64) NOT NULL DEFAULT ''"
+                "ALTER TABLE login_sessions ADD COLUMN IF NOT EXISTS ip_address VARCHAR(64) NOT NULL DEFAULT ''",
+                "ALTER TABLE ip_address_records ADD COLUMN IF NOT EXISTS rate_window_started TIMESTAMP NULL",
+                "ALTER TABLE ip_address_records ADD COLUMN IF NOT EXISTS rate_window_count INTEGER NOT NULL DEFAULT 0"
             ]
             for sql in statements:conn.execute(text(sql))
         elif dialect=="sqlite":
-            tables={"users":{c["name"] for c in inspect(engine).get_columns("users")}, "listings":{c["name"] for c in inspect(engine).get_columns("listings")},"listing_images":{c["name"] for c in inspect(engine).get_columns("listing_images")},"login_sessions":{c["name"] for c in inspect(engine).get_columns("login_sessions")}}
+            tables={"users":{c["name"] for c in inspect(engine).get_columns("users")}, "listings":{c["name"] for c in inspect(engine).get_columns("listings")},"listing_images":{c["name"] for c in inspect(engine).get_columns("listing_images")},"login_sessions":{c["name"] for c in inspect(engine).get_columns("login_sessions")},"ip_address_records":{c["name"] for c in inspect(engine).get_columns("ip_address_records")}}
             additions={
                 "users":{"blacklisted":"BOOLEAN NOT NULL DEFAULT 0","blacklist_reason":"TEXT NOT NULL DEFAULT ''","blacklisted_at":"DATETIME","verification_code_hash":"VARCHAR(64) NOT NULL DEFAULT ''","verification_expires_at":"DATETIME","verification_sent_at":"DATETIME","default_meeting_address":"VARCHAR(250) NOT NULL DEFAULT ''","registration_type":"VARCHAR(20) NOT NULL DEFAULT 'normal'","account_status":"VARCHAR(30) NOT NULL DEFAULT 'active'","failed_login_attempts":"INTEGER NOT NULL DEFAULT 0","login_locked_until":"DATETIME","unread_mail_notifications":"BOOLEAN NOT NULL DEFAULT 1","theme_preference":"VARCHAR(10) NOT NULL DEFAULT 'dark'"},
                 "listings":{"published_at":"DATETIME","expires_at":"DATETIME","listing_time_fee":"INTEGER NOT NULL DEFAULT 0","refunded_time_fee":"INTEGER NOT NULL DEFAULT 0","product_type":"VARCHAR(20) NOT NULL DEFAULT 'vehicle'"},
                 "listing_images":{"image_data":"BLOB","mime_type":"VARCHAR(60) NOT NULL DEFAULT 'image/jpeg'"},
-                "login_sessions":{"ip_address":"VARCHAR(64) NOT NULL DEFAULT ''"}
+                "login_sessions":{"ip_address":"VARCHAR(64) NOT NULL DEFAULT ''"},
+                "ip_address_records":{"rate_window_started":"DATETIME","rate_window_count":"INTEGER NOT NULL DEFAULT 0"}
             }
             for table,cols in additions.items():
                 for name,ddl in cols.items():

@@ -171,6 +171,8 @@ class IpAddressRecord(Base):
     status_reason:Mapped[str]=mapped_column(String(250),default="")
     request_count:Mapped[int]=mapped_column(Integer,default=0)
     peak_requests_per_minute:Mapped[int]=mapped_column(Integer,default=0)
+    rate_window_started:Mapped[datetime|None]=mapped_column(DateTime,nullable=True,index=True)
+    rate_window_count:Mapped[int]=mapped_column(Integer,default=0)
 
 class IpActivityLog(Base):
     __tablename__="ip_activity_logs"

@@ -50,7 +50,7 @@ def render():
         with st.form("new_listing"):
             defaults={"meeting_address":st.session_state.user.get("default_meeting_address","")}
             data=_data("new_",values=defaults,product_type_override=new_product_type,show_type=False)
-            submit=st.form_submit_button("儲存草稿",use_container_width=True)
+            submit=st.form_submit_button("儲存草稿",width="stretch")
             if submit:
                 lid,msg=create_draft(uid,data)
                 if lid:st.success(f"草稿 #{lid} 已建立")
@@ -71,7 +71,7 @@ def render():
                     with cimg:
                         if imgs:
                             source=image_source(imgs[0])
-                            if source is not None:st.image(source,use_container_width=True)
+                            if source is not None:st.image(source,width="stretch")
                             else:st.caption("封面圖片暫時無法顯示")
                         else:
                             st.caption("尚未上傳封面圖片")
@@ -102,7 +102,7 @@ def render():
                             with icols[ii%len(icols)]:
                                 if load_detail_images:
                                     source=image_source(img)
-                                    if source is not None:st.image(source,use_container_width=True)
+                                    if source is not None:st.image(source,width="stretch")
                                 st.caption(f"#{ii+1}"+(" 封面" if ii==0 else ""))
                                 a,b,c=st.columns(3)
                                 if a.button("←",key=f'left_{img["id"]}',disabled=ii==0):
@@ -112,7 +112,7 @@ def render():
                                 if c.button("刪",key=f'delimg_{img["id"]}'):
                                     delete_image(uid,img["id"]);st.rerun()
                     uploads=st.file_uploader("新增商品照片（最多 10 張；第 1 張為封面）",type=["jpg","jpeg","png","webp"],accept_multiple_files=True,key=f'photos_{x["id"]}')
-                    if uploads and st.button("儲存新增照片",key=f'savephotos_{x["id"]}',use_container_width=True):
+                    if uploads and st.button("儲存新增照片",key=f'savephotos_{x["id"]}',width="stretch"):
                         ok,msg=add_uploaded_images(uid,x["id"],uploads)
                         st.session_state.seller_flash=("success" if ok else "error",msg);st.rerun()
                     if x["status"]=="draft":
@@ -126,21 +126,21 @@ def render():
                             if edit_product_type=="general":st.caption("常規商品模式：車輛專屬欄位已隱藏。")
                             with st.form(f'edit_{x["id"]}'):
                                 data=_data(f'edit_{x["id"]}_',x,product_type_override=edit_product_type,show_type=False)
-                                if st.form_submit_button("儲存修改",use_container_width=True):
+                                if st.form_submit_button("儲存修改",width="stretch"):
                                     ok,msg=update_draft(uid,x["id"],data)
                                     st.session_state.seller_flash=("success" if ok else "error",msg);st.rerun()
                         c1,c2=st.columns(2)
-                        if c1.button("正式上架",key=f'pub{x["id"]}',use_container_width=True):
+                        if c1.button("正式上架",key=f'pub{x["id"]}',width="stretch"):
                             ok,msg=publish(uid,x["id"])
                             if ok:
                                 st.session_state.seller_flash=("success",msg);st.rerun()
                             else:
                                 st.error(msg)
-                        if c2.button("前往流量中心",key=f'traffic{x["id"]}',use_container_width=True):
+                        if c2.button("前往流量中心",key=f'traffic{x["id"]}',width="stretch"):
                             st.session_state.page="流量中心";st.rerun()
                         st.divider()
                         st.caption("刪除草稿會永久刪除草稿及其照片，無法復原。")
-                        if st.button("🗑 刪除草稿",key=f'delete_draft_{x["id"]}',use_container_width=True):
+                        if st.button("🗑 刪除草稿",key=f'delete_draft_{x["id"]}',width="stretch"):
                             ok,msg=delete_draft(uid,x["id"])
                             st.session_state.seller_flash=("success" if ok else "error",msg);st.rerun()
                     elif x["status"]=="active":
@@ -151,15 +151,15 @@ def render():
                         st.info(f"目前下架預計退還：{refund or 0} 流量（按剩餘上架期間計算；最低流量不退款）")
                         confirm_key=f'confirm_unlist_{x["id"]}'
                         if not st.session_state.get(confirm_key,False):
-                            if st.button("下架商品",key=f'unlist_{x["id"]}',use_container_width=True):
+                            if st.button("下架商品",key=f'unlist_{x["id"]}',width="stretch"):
                                 st.session_state[confirm_key]=True;st.rerun()
                         else:
                             st.warning(f"確定下架？目前預計退還 {refund or 0} 流量。下架後商品會回到草稿並從首頁消失。")
                             u1,u2=st.columns(2)
-                            if u1.button("確定下架",key=f'confirm_unlist_btn_{x["id"]}',type="primary",use_container_width=True):
+                            if u1.button("確定下架",key=f'confirm_unlist_btn_{x["id"]}',type="primary",width="stretch"):
                                 ok,msg,amount=unlist(uid,x["id"])
                                 if ok:st.session_state.user["traffic_balance"]+=amount
                                 st.session_state.pop(confirm_key,None)
                                 st.session_state.seller_flash=("success" if ok else "error",msg);st.rerun()
-                            if u2.button("取消",key=f'cancel_unlist_{x["id"]}',use_container_width=True):
+                            if u2.button("取消",key=f'cancel_unlist_{x["id"]}',width="stretch"):
                                 st.session_state.pop(confirm_key,None);st.rerun()

@@ -19,8 +19,8 @@ def reservations():
             st.write(f'#{a["id"]}｜{a["appointment_at"]}｜{a.get("listing_title","")}')
             st.caption(f'買家 ID：{a.get("other_user_id","")}｜{a.get("other_name","")}｜{a.get("other_email","")}｜{a.get("other_phone","")}')
             c1,c2=st.columns(2)
-            if c1.button("確認",key=f'ok{a["id"]}',use_container_width=True):set_status(uid,a["id"],"已確認");st.rerun()
-            if c2.button("拒絕",key=f'no{a["id"]}',use_container_width=True):set_status(uid,a["id"],"已拒絕");st.rerun()
+            if c1.button("確認",key=f'ok{a["id"]}',width="stretch"):set_status(uid,a["id"],"已確認");st.rerun()
+            if c2.button("拒絕",key=f'no{a["id"]}',width="stretch"):set_status(uid,a["id"],"已拒絕");st.rerun()
     if len(pending_rows)>10 and not show_all_pending:st.caption(f"目前僅顯示最近 10 則，共 {len(pending_rows)} 則；勾選「顯示全部」可查看其餘紀錄。")
 
     st.divider();st.subheader("預約歷史紀錄")
@@ -50,7 +50,7 @@ def reservations():
     if len(rows)>10 and not show_all_history and not focus:st.caption(f"目前僅顯示最近 10 則，共 {len(rows)} 則。")
     if selected:
         from backend.services.appointment_service import delete_appointments
-        if st.button(f"批量刪除已選預約（{len(selected)}）",key="bulk_delete_appointments",use_container_width=True):
+        if st.button(f"批量刪除已選預約（{len(selected)}）",key="bulk_delete_appointments",width="stretch"):
             ok,msg=delete_appointments(uid,selected);(st.success if ok else st.error)(msg)
             if ok:st.rerun()
 
@@ -90,7 +90,7 @@ def mailbox():
     notice=st.session_state.pop("mail_reply_notice",None)
     if notice:st.success(notice)
     c1,c2=st.columns([4,1]);keyword=c1.text_input("搜尋信件",placeholder="輸入寄件者使用者 ID、電話或 Gmail / Email",key="mail_search")
-    if c2.button("重新整理",key="refresh_mailbox",use_container_width=True):st.rerun()
+    if c2.button("重新整理",key="refresh_mailbox",width="stretch"):st.rerun()
     rows=inbox(uid,keyword)
     if not rows:st.info("目前沒有符合條件的信件。");return
     selected=[]
@@ -105,9 +105,9 @@ def mailbox():
                 st.caption(f'使用者 ID：{m["sender_user_id"]}｜帳號名：{m["sender_name"]}｜信箱：{m["sender_email"]}｜電話：{m["sender_phone"]}')
                 st.caption(f'寄送時間：{m["created_at"]}'+(f'｜商品 #{m["listing_id"]}' if m["listing_id"] else ""));st.write(m["body"])
                 c1s,c2s=st.columns(2);new_status=c1s.selectbox("信件狀態",["未讀","已讀"],index=0 if m["status"]=="未讀" else 1,key=f'mstatus_{m["id"]}')
-                if c2s.button("更新狀態",key=f'mstatus_btn_{m["id"]}',use_container_width=True):set_message_status(uid,m["id"],new_status);st.rerun()
+                if c2s.button("更新狀態",key=f'mstatus_btn_{m["id"]}',width="stretch"):set_message_status(uid,m["id"],new_status);st.rerun()
                 reply=st.text_area("快速回信",key=f'mreply_{m["id"]}',placeholder="輸入回覆內容")
-                if st.button("送出回覆",key=f'mreply_btn_{m["id"]}',type="primary",use_container_width=True):
+                if st.button("送出回覆",key=f'mreply_btn_{m["id"]}',type="primary",width="stretch"):
                     ok,msg=quick_reply(uid,m["id"],reply)
                     if ok:
                         st.session_state.mail_reply_clear_mid=m["id"]
@@ -116,13 +116,13 @@ def mailbox():
                     else:st.error(msg)
     if selected:
         st.warning(f"已選擇 {len(selected)} 封信件。刪除後，被刪除方的信件狀態會改為「無送達紀錄」。")
-        if st.button(f"批量刪除已選信件（{len(selected)}）",key="bulk_delete_mail",use_container_width=True):
+        if st.button(f"批量刪除已選信件（{len(selected)}）",key="bulk_delete_mail",width="stretch"):
             ok,msg=delete_messages(uid,selected);(st.success if ok else st.error)(msg)
             if ok:st.rerun()
 
 def admin_contact():
     st.title("送信給管理員");cat=st.selectbox("類型",["帳戶問題","商品問題","預約問題","流量問題","付款問題","檢舉","建議","其他"]);sub=st.text_input("主旨");body=st.text_area("內容")
-    if st.button("送信",use_container_width=True):
+    if st.button("送信",width="stretch"):
         if sub and body:send_admin(st.session_state.user["id"],cat,sub,body);st.success("已送交管理員信箱")
         else:st.error("主旨與內容不可為空")
 
@@ -133,13 +133,13 @@ def traffic():
     if s.get("transfer_note"):st.caption(s["transfer_note"])
     st.caption("流量兌換：NT$1 = 1 流量；單次最低 NT$500。轉帳完成後提交申請，由管理員審核。")
     amt=st.number_input("轉帳金額",min_value=500,step=100);last5=st.text_input("匯款帳號末五碼",max_chars=5);note=st.text_area("備註")
-    if st.button("送出購買申請",use_container_width=True):
+    if st.button("送出購買申請",width="stretch"):
         ok,msg=request_purchase(uid,int(amt),last5,note);st.success(msg) if ok else st.error(msg)
     st.subheader("購買申請狀態");requests=purchase_requests(uid)
-    if requests:st.dataframe(pd.DataFrame(requests)[["id","amount","last5","status","created_at","note"]],use_container_width=True,hide_index=True)
+    if requests:st.dataframe(pd.DataFrame(requests)[["id","amount","last5","status","created_at","note"]],width="stretch",hide_index=True)
     else:st.info("目前沒有流量購買申請。")
     st.divider()
     with st.expander("流量紀錄（最近 10 筆）",expanded=False):
         rows=transactions(uid,limit=10)
-        if rows:st.dataframe(pd.DataFrame(rows),use_container_width=True,hide_index=True)
+        if rows:st.dataframe(pd.DataFrame(rows),width="stretch",hide_index=True)
         else:st.info("目前沒有流量紀錄。")

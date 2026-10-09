@@ -6,7 +6,7 @@ def render_login():
     st.title("登入")
     e=st.text_input("Email");p=st.text_input("密碼",type="password")
     st.caption("登入後此裝置將自動保持登入狀態 30 天。")
-    if st.button("登入",use_container_width=True):
+    if st.button("登入",width="stretch"):
         u,msg=login(e,p)
         if u:
             try:
@@ -22,7 +22,7 @@ def render_register():
     if registration_type=="normal":st.caption("一般註冊受到網站帳號數量上限限制，建立成功後可直接登入。")
     else:st.info("授權註冊不受一般帳號數量上限限制，但建立後必須等待管理員批准，批准前無法登入。")
     n=st.text_input("名稱");e=st.text_input("Email");ph=st.text_input("手機號碼");p=st.text_input("密碼",type="password")
-    if st.button("提交註冊",use_container_width=True):
+    if st.button("提交註冊",width="stretch"):
         if device_already_registered():
             st.warning("一個裝置僅可註冊一個帳號。")
             return
@@ -46,7 +46,7 @@ def render_settings():
     phone=st.text_input("電話",value=u.get("phone",""),key="settings_phone")
     default_meeting_address=st.text_input("常用交易／看貨地址",value=u.get("default_meeting_address",""),key="settings_default_meeting_address",placeholder="建立商品草稿時會自動帶入")
     unread_mail_notifications=st.checkbox("瀏覽商品時提醒我有未讀信件",value=bool(u.get("unread_mail_notifications",True)),key="settings_unread_mail_notifications")
-    if st.button("儲存帳戶訊息",type="primary",use_container_width=True):
+    if st.button("儲存帳戶訊息",type="primary",width="stretch"):
         ok,msg,new_user=update_account_info(u["id"],email,phone,default_meeting_address,unread_mail_notifications)
         (st.success if ok else st.error)(msg)
         if ok:
@@ -57,7 +57,7 @@ def render_settings():
     st.warning("註銷後帳號將停用、公開商品下架，且會登出所有裝置。歷史交易／訊息資料依平台規則保留。")
     password=st.text_input("目前密碼",type="password",key="close_account_password")
     confirm=st.checkbox("我確認要註銷此帳號",key="close_account_confirm")
-    if st.button("註銷帳號",use_container_width=True,disabled=not confirm):
+    if st.button("註銷帳號",width="stretch",disabled=not confirm):
         ok,msg=close_account(u["id"],password)
         (st.success if ok else st.error)(msg)
         if ok:

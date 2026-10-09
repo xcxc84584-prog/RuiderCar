@@ -20,7 +20,7 @@ def render():
         with cols[i%3]:
             if vehicle_card(x,show_image=True):
                 st.session_state.selected_listing=x["id"];st.session_state.page="商品詳細";st.rerun()
-            if st.button("取消收藏",key=f'fav_remove_{x["id"]}',use_container_width=True):
+            if st.button("取消收藏",key=f'fav_remove_{x["id"]}',width="stretch"):
                 if u:toggle_favorite(u["id"],x["id"])
                 else:toggle_guest_favorite(x["id"])
                 st.rerun()

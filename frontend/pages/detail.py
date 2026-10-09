@@ -1,5 +1,6 @@
 import streamlit as st
 from datetime import datetime,timedelta
+from backend.utils.timezone import taipei_now
 from backend.services.listing_service import get_listing,admin_force_remove
 from backend.services.appointment_service import create
 from backend.services.message_service import send
@@ -14,7 +15,7 @@ def render():
     current=st.session_state.get("user")
     def back_to_browse(key):
         if st.session_state.get("detail_origin")!="首頁":return
-        if st.button("← 返回瀏覽位置",key=key,use_container_width=False):
+        if st.button("← 返回瀏覽位置",key=key,width="content"):
             st.session_state.home_restore_listing=st.session_state.get("home_return_listing",x["id"])
             st.session_state.page="首頁"
             st.session_state.pop("detail_origin",None)
@@ -37,7 +38,7 @@ def render():
     with top_image:
         if imgs:
             source=image_source(imgs[0])
-            if source is not None:st.image(source,use_container_width=True)
+            if source is not None:st.image(source,width="stretch")
             else:st.info("封面照片目前無法顯示。")
         else:st.info("賣家尚未上傳商品照片。")
     with top_info:
@@ -63,7 +64,7 @@ def render():
     if current and current.get("role")=="admin" and x["status"]=="active":
         st.warning("管理員強制移除不退還賣家流量；系統會通知賣家，商品與草稿資料將永久刪除。")
         reason=st.text_input("強制移除原因",key=f'admin_force_reason_detail_{x["id"]}',placeholder="必填；原因會出現在系統通知中")
-        if st.button("管理員強制移除商品",key=f'admin_force_remove_detail_{x["id"]}',use_container_width=True):
+        if st.button("管理員強制移除商品",key=f'admin_force_remove_detail_{x["id"]}',width="stretch"):
             ok,msg=admin_force_remove(current["id"],x["id"],reason)
             (st.success if ok else st.error)(msg)
             if ok:st.session_state.page="首頁";st.rerun()
@@ -74,15 +75,15 @@ def render():
         st.info("這是你自己的商品。")
     else:
         st.subheader("預約查看商品")
-        d=st.date_input("日期",min_value=datetime.now().date())
-        t=st.time_input("時間",value=(datetime.now()+timedelta(hours=2)).time().replace(second=0,microsecond=0))
+        d=st.date_input("日期",min_value=taipei_now().date())
+        t=st.time_input("時間",value=(taipei_now()+timedelta(hours=2)).time().replace(second=0,microsecond=0))
         note=st.text_input("備註")
-        if st.button("提出預約",use_container_width=True):
+        if st.button("提出預約",width="stretch"):
             ok,msg=create(u["id"],x["id"],datetime.combine(d,t),note);st.success(msg) if ok else st.error(msg)
         st.subheader("和賣家聊天")
         subject=st.text_input("主旨",value=f'詢問：{x["title"]}')
         body=st.text_area("內容")
-        if st.button("送出訊息",use_container_width=True):
+        if st.button("送出訊息",width="stretch"):
             if body.strip():send(u["id"],x["seller_id"],subject,body,x["id"]);st.success("訊息已送出")
     if len(imgs)>1:
         st.divider()
@@ -94,7 +95,7 @@ def render():
             for offset,img in enumerate(gallery[start:start+3]):
                 source=image_source(img)
                 if source is not None:
-                    with cols[offset]:st.image(source,use_container_width=True,caption=f"照片 {start+offset+2}")
+                    with cols[offset]:st.image(source,width="stretch",caption=f"照片 {start+offset+2}")
     if st.session_state.get("detail_origin")=="首頁":
         st.divider()
         back_to_browse("detail_back_to_browse_bottom")

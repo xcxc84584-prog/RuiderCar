@@ -8,6 +8,7 @@ from backend.services.account_service import update_theme_preference
 from backend.services.ip_service import client_ip_from_streamlit,touch_ip,cleanup_old_logs
 import time
 from datetime import datetime
+from backend.utils.timezone import utc_now
 st.set_page_config(page_title="RuiderCar 車輛交易平台",page_icon="🚙",layout="wide",initial_sidebar_state="expanded")
 @st.cache_resource(show_spinner=False)
 def _bootstrap():
@@ -24,10 +25,10 @@ if not ip_gate.get("allowed",True):
         st.title("網站目前使用人數已達上限")
         st.info(f'排隊中：當前隊列第 {ip_gate.get("queue_position",1)} 位')
         st.caption("系統會依序釋放最近 5 分鐘沒有活動的 IP 名額。請稍後重新整理。")
-        if st.button("重新檢查排隊狀態",use_container_width=True):st.rerun()
+        if st.button("重新檢查排隊狀態",width="stretch"):st.rerun()
     elif status=="greylist":
         until=ip_gate.get("until")
-        remain=max(0,int((until-datetime.utcnow()).total_seconds())) if until else 0
+        remain=max(0,int((until-utc_now()).total_seconds())) if until else 0
         st.title("暫時限制存取")
         st.error(f'此 IP 因短時間大量請求暫停存取。剩餘約 {remain//60} 分 {remain%60} 秒。')
     else:
@@ -70,7 +71,7 @@ with st.sidebar:
         if st.session_state.get("impersonator_admin"):
             admin_origin=st.session_state.impersonator_admin
             st.warning(f'管理員代理登入：#{u["id"]} {u["name"]}')
-            if st.button("返回管理員帳號",use_container_width=True,key="return_admin"):
+            if st.button("返回管理員帳號",width="stretch",key="return_admin"):
                 from backend.services.admin_service import log_impersonation_end
                 log_impersonation_end(admin_origin["id"],u["id"])
                 st.session_state.user=admin_origin
@@ -82,16 +83,16 @@ with st.sidebar:
         pages=["首頁","我的收藏","我的預約","信件區","送信給管理員","流量中心","賣出／商品管理","輔助與說明","帳號設定"]
         if u.get("role")=="admin":pages.append("管理員後台")
         for p in pages:
-            if st.button(p,use_container_width=True,key=f"nav_{p}"):st.session_state.page=p;st.session_state.show_loading=True;st.rerun()
-        if st.button("登出",use_container_width=True):
+            if st.button(p,width="stretch",key=f"nav_{p}"):st.session_state.page=p;st.session_state.show_loading=True;st.rerun()
+        if st.button("登出",width="stretch"):
             st.session_state.pop("impersonator_admin",None)
             logout_browser_session();st.session_state.page="首頁";st.session_state.show_loading=True;st.rerun()
     else:
-        if st.button("首頁",use_container_width=True):st.session_state.page="首頁";st.session_state.show_loading=True;st.rerun()
-        if st.button("我的收藏",use_container_width=True):st.session_state.page="我的收藏";st.rerun()
-        if st.button("登入",use_container_width=True):st.session_state.page="登入";st.session_state.show_loading=True;st.rerun()
-        if st.button("註冊",use_container_width=True):st.session_state.page="註冊";st.session_state.show_loading=True;st.rerun()
-        if st.button("輔助與說明",use_container_width=True):st.session_state.page="輔助與說明";st.session_state.show_loading=True;st.rerun()
+        if st.button("首頁",width="stretch"):st.session_state.page="首頁";st.session_state.show_loading=True;st.rerun()
+        if st.button("我的收藏",width="stretch"):st.session_state.page="我的收藏";st.rerun()
+        if st.button("登入",width="stretch"):st.session_state.page="登入";st.session_state.show_loading=True;st.rerun()
+        if st.button("註冊",width="stretch"):st.session_state.page="註冊";st.session_state.show_loading=True;st.rerun()
+        if st.button("輔助與說明",width="stretch"):st.session_state.page="輔助與說明";st.session_state.show_loading=True;st.rerun()
 if _lp:_lp.progress(80,text="正在載入內容…")
 route()
 if _lp:_lp.progress(100,text="載入完成")

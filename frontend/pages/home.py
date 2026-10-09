@@ -35,7 +35,7 @@ def render():
         if unread>0:
             cmsg,cbtn=st.columns([5,1])
             cmsg.warning(f"📩 你有 {unread} 封未讀信件。")
-            if cbtn.button("查看信件",key="home_open_unread_mail",use_container_width=True):
+            if cbtn.button("查看信件",key="home_open_unread_mail",width="stretch"):
                 st.session_state.page="信件區";st.rerun()
     prices=[int(x.get("price",0) or 0) for x in cars]
     price_min=min(prices);price_max=max(prices)
@@ -43,7 +43,7 @@ def render():
     cmin,cmax,cquery=st.columns([2,2,1])
     selected_min=cmin.number_input("最低價格",min_value=0,value=int(price_min),step=1000,key="home_price_min")
     selected_max=cmax.number_input("最高價格",min_value=0,value=int(price_max),step=1000,key="home_price_max")
-    query_price=cquery.button("查詢",use_container_width=True,key="home_price_query")
+    query_price=cquery.button("查詢",width="stretch",key="home_price_query")
     if selected_min>selected_max:
         st.error("最低價格不可高於最高價格。")
         return
@@ -78,7 +78,7 @@ def render():
                     if x.get("seller_default_meeting_address"):st.caption(f'常用交易／看貨地址：{x["seller_default_meeting_address"]}')
                     if x.get("summary"):st.write(x["summary"])
                 with c2:
-                    if st.button("查看",key=f'home_text_view_{x["id"]}',use_container_width=True):_open(x["id"])
+                    if st.button("查看",key=f'home_text_view_{x["id"]}',width="stretch"):_open(x["id"])
 
     if return_lid:
         components.html(f"""<script>
@@ -93,12 +93,12 @@ def render():
     st.caption(f"第 {page}/{pages} 頁｜每頁最多 {PAGE_SIZE} 件商品。僅載入目前頁面的商品封面。")
     prev_col,page_col,next_col=st.columns([1,2,1])
     with prev_col:
-        if st.button("← 上一頁",disabled=page<=1,use_container_width=True,key="home_prev_page"):
+        if st.button("← 上一頁",disabled=page<=1,width="stretch",key="home_prev_page"):
             st.session_state.home_page=page-1;st.session_state.show_loading=True;st.rerun()
     with page_col:
         selected_page=st.selectbox("切換頁面",list(range(1,pages+1)),index=page-1,key="home_bottom_page",label_visibility="collapsed")
         if selected_page!=page:
             st.session_state.home_page=selected_page;st.session_state.show_loading=True;st.rerun()
     with next_col:
-        if st.button("下一頁 →",disabled=page>=pages,use_container_width=True,key="home_next_page"):
+        if st.button("下一頁 →",disabled=page>=pages,width="stretch",key="home_next_page"):
             st.session_state.home_page=page+1;st.session_state.show_loading=True;st.rerun()
