@@ -85,6 +85,10 @@ def reservations():
 
 def mailbox():
     uid=st.session_state.user["id"];st.title("信件區")
+    clear_mid=st.session_state.pop("mail_reply_clear_mid",None)
+    if clear_mid is not None:st.session_state.pop(f"mreply_{clear_mid}",None)
+    notice=st.session_state.pop("mail_reply_notice",None)
+    if notice:st.success(notice)
     c1,c2=st.columns([4,1]);keyword=c1.text_input("搜尋信件",placeholder="輸入寄件者使用者 ID、電話或 Gmail / Email",key="mail_search")
     if c2.button("重新整理",key="refresh_mailbox",use_container_width=True):st.rerun()
     rows=inbox(uid,keyword)
@@ -104,8 +108,12 @@ def mailbox():
                 if c2s.button("更新狀態",key=f'mstatus_btn_{m["id"]}',use_container_width=True):set_message_status(uid,m["id"],new_status);st.rerun()
                 reply=st.text_area("快速回信",key=f'mreply_{m["id"]}',placeholder="輸入回覆內容")
                 if st.button("送出回覆",key=f'mreply_btn_{m["id"]}',type="primary",use_container_width=True):
-                    ok,msg=quick_reply(uid,m["id"],reply);(st.success if ok else st.error)(msg)
-                    if ok:st.rerun()
+                    ok,msg=quick_reply(uid,m["id"],reply)
+                    if ok:
+                        st.session_state.mail_reply_clear_mid=m["id"]
+                        st.session_state.mail_reply_notice="✅ 回覆已送出"
+                        st.rerun()
+                    else:st.error(msg)
     if selected:
         st.warning(f"已選擇 {len(selected)} 封信件。刪除後，被刪除方的信件狀態會改為「無送達紀錄」。")
         if st.button(f"批量刪除已選信件（{len(selected)}）",key="bulk_delete_mail",use_container_width=True):

@@ -26,7 +26,7 @@ def restore_login_session(token):
             return None
         u=db.get(User,s.user_id)
         if not u or u.suspended or u.blacklisted or (u.account_status or "active")!="active":return None
-        return {"id":u.id,"name":u.name,"email":u.email,"phone":u.phone,"role":u.role,"traffic_balance":u.traffic_balance,"default_meeting_address":u.default_meeting_address or "","registration_type":u.registration_type or "normal","account_status":u.account_status or "active","unread_mail_notifications":bool(u.unread_mail_notifications)}
+        return {"id":u.id,"name":u.name,"email":u.email,"phone":u.phone,"role":u.role,"traffic_balance":u.traffic_balance,"default_meeting_address":u.default_meeting_address or "","registration_type":u.registration_type or "normal","account_status":u.account_status or "active","unread_mail_notifications":bool(u.unread_mail_notifications),"theme_preference":u.theme_preference if u.theme_preference in ("dark","light") else "dark"}
 def revoke_login_session(token):
     if not token:return
     with SessionLocal() as db:

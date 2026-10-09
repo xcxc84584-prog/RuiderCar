@@ -39,4 +39,13 @@ def update_account_info(uid,email,phone,default_meeting_address='',unread_mail_n
         if phone_owner:return False,"此電話已被其他帳號使用",None
         u.email=email;u.phone=phone;u.default_meeting_address=str(default_meeting_address or '').strip();u.unread_mail_notifications=bool(unread_mail_notifications)
         db.commit()
-        return True,"帳戶訊息已更新",{"id":u.id,"name":u.name,"email":u.email,"phone":u.phone,"role":u.role,"traffic_balance":u.traffic_balance,"default_meeting_address":u.default_meeting_address or "","registration_type":u.registration_type or "normal","account_status":u.account_status or "active","unread_mail_notifications":bool(u.unread_mail_notifications)}
+        return True,"帳戶訊息已更新",{"id":u.id,"name":u.name,"email":u.email,"phone":u.phone,"role":u.role,"traffic_balance":u.traffic_balance,"default_meeting_address":u.default_meeting_address or "","registration_type":u.registration_type or "normal","account_status":u.account_status or "active","unread_mail_notifications":bool(u.unread_mail_notifications),"theme_preference":u.theme_preference if u.theme_preference in ("dark","light") else "dark"}
+
+
+def update_theme_preference(uid,mode):
+    mode=str(mode or "dark").lower()
+    if mode not in ("dark","light"):return False
+    with SessionLocal() as db:
+        u=db.get(User,uid)
+        if not u:return False
+        u.theme_preference=mode;db.commit();return True

@@ -26,6 +26,7 @@ class User(Base):
     failed_login_attempts:Mapped[int]=mapped_column(Integer,default=0)
     login_locked_until:Mapped[datetime|None]=mapped_column(DateTime,nullable=True)
     unread_mail_notifications:Mapped[bool]=mapped_column(Boolean,default=True)
+    theme_preference:Mapped[str]=mapped_column(String(10),default="dark")
     created_at:Mapped[datetime]=mapped_column(DateTime,default=datetime.utcnow)
 
 

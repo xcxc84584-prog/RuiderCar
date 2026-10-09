@@ -37,14 +37,26 @@ def settings():
         xs=db.scalars(select(SystemSetting)).all()
         out=DEFAULTS.copy();out.update({x.key:x.value for x in xs});return out
 def save_setting(admin_uid,key,value):
+    return save_settings(admin_uid,{key:value})[0]
+def save_settings(admin_uid,values):
+    if not isinstance(values,dict) or not values:return False,"沒有可儲存的設定"
     with SessionLocal() as db:
         admin=db.get(User,admin_uid)
-        if not admin or admin.role!="admin":return False
-        x=db.get(SystemSetting,key)
-        if x:x.value=str(value)
-        else:db.add(SystemSetting(key=key,value=str(value)))
-        db.commit()
-    settings.clear();return True
+        if not admin or admin.role!="admin":return False,"沒有管理員權限"
+        try:
+            for key,value in values.items():
+                if key not in DEFAULTS:return False,f"不允許的設定項目：{key}"
+                x=db.get(SystemSetting,key)
+                if x:x.value=str(value)
+                else:db.add(SystemSetting(key=key,value=str(value)))
+            db.commit()
+        except Exception:
+            db.rollback();return False,"系統設定儲存失敗，資料未變更"
+    settings.clear()
+    refreshed=settings()
+    for key,value in values.items():
+        if str(refreshed.get(key,""))!=str(value):return False,f"設定 {key} 寫入後驗證失敗"
+    return True,"系統設定已更新"
 
 def ensure_blacklist_schema():
     with SessionLocal() as db:

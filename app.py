@@ -2,16 +2,15 @@ import streamlit as st
 from backend.seed import seed
 from frontend.styles.theme import apply_theme
 from frontend.router import route
-from frontend.auth_session import restore_browser_session,logout_browser_session
+from frontend.auth_session import restore_browser_session,logout_browser_session,browser_theme_preference,save_browser_theme_preference
 from backend.services.auth_service import fresh_user
+from backend.services.account_service import update_theme_preference
 st.set_page_config(page_title="RuiderCar 車輛交易平台",page_icon="🚙",layout="wide",initial_sidebar_state="expanded")
 @st.cache_resource(show_spinner=False)
 def _bootstrap():
     seed()
     return True
 _bootstrap()
-if "theme_mode" not in st.session_state:st.session_state.theme_mode="dark"
-apply_theme(st.session_state.theme_mode)
 if "page" not in st.session_state:st.session_state.page="首頁"
 restore_browser_session()
 if st.session_state.get("user"):
@@ -19,12 +18,27 @@ if st.session_state.get("user"):
         latest=fresh_user(st.session_state.user["id"])
         if latest:st.session_state.user=latest
         else:logout_browser_session()
+u=st.session_state.get("user")
+current_identity=u.get("id") if u else "guest"
+if st.session_state.get("theme_identity")!=current_identity:
+    preferred=(u.get("theme_preference") if u else browser_theme_preference()) or "dark"
+    st.session_state.theme_mode=preferred if preferred in ("dark","light") else "dark"
+    st.session_state.theme_identity=current_identity
+    st.session_state.theme_selector="🌙 黑夜" if st.session_state.theme_mode=="dark" else "☀️ 白天"
+elif "theme_mode" not in st.session_state:
+    st.session_state.theme_mode=(browser_theme_preference() or "dark")
+apply_theme(st.session_state.theme_mode)
 with st.sidebar:
     st.markdown("## 🚙 RuiderCar")
     theme_label=st.radio("顯示模式",["🌙 黑夜","☀️ 白天"],index=0 if st.session_state.theme_mode=="dark" else 1,horizontal=True,key="theme_selector")
     selected_theme="dark" if theme_label.startswith("🌙") else "light"
     if selected_theme!=st.session_state.theme_mode:
-        st.session_state.theme_mode=selected_theme;st.rerun()
+        st.session_state.theme_mode=selected_theme
+        save_browser_theme_preference(selected_theme)
+        if st.session_state.get("user"):
+            update_theme_preference(st.session_state.user["id"],selected_theme)
+            st.session_state.user["theme_preference"]=selected_theme
+        st.rerun()
     u=st.session_state.get("user")
     if u:
         if st.session_state.get("impersonator_admin"):

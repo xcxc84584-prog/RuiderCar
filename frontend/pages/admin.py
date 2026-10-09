@@ -1,5 +1,5 @@
 import streamlit as st
-from backend.services.admin_service import settings,save_setting,users_for_admin,blacklist_user,unblacklist_user,permanently_delete_user,bulk_blacklist_users,bulk_unblacklist_users,impersonate_user,pending_authorized_registrations,review_authorized_registration,admin_audit_logs
+from backend.services.admin_service import settings,save_setting,save_settings,users_for_admin,blacklist_user,unblacklist_user,permanently_delete_user,bulk_blacklist_users,bulk_unblacklist_users,impersonate_user,pending_authorized_registrations,review_authorized_registration,admin_audit_logs
 from backend.services.message_service import admin_messages,reply_admin,set_admin_message_status,delete_admin_messages,bulk_admin_message_status
 from backend.services.traffic_service import pending,approve,reject
 from backend.services.backup_service import make_backup
@@ -94,6 +94,8 @@ def render():
                     ok,msg=review_authorized_registration(admin_uid,r["id"],False);(st.success if ok else st.error)(msg)
                     if ok:st.rerun()
     with tabs[3]:
+        notice=st.session_state.pop("admin_reply_notice",None)
+        if notice:st.success(notice)
         admin_uid=st.session_state.user["id"]
         rows=admin_messages(admin_uid)
         if not rows:st.info("目前沒有管理員信件。")
@@ -112,8 +114,9 @@ def render():
                     set_admin_message_status(admin_uid,m["id"],ns);st.rerun()
                 r=st.text_area("快速回信",value=m["reply"],key=f'r{m["id"]}')
                 if st.button("回覆並標記已回覆",key=f'rr{m["id"]}',type="primary",use_container_width=True):
-                    if reply_admin(admin_uid,m["id"],r):st.rerun()
-                    else:st.error("回覆內容不可為空")
+                    if reply_admin(admin_uid,m["id"],r):
+                        st.session_state.admin_reply_notice="✅ 回覆已送出";st.rerun()
+                    else:st.error("回覆內容不可為空或沒有管理員權限")
         if selected_admin_messages:
             st.divider();st.subheader("批量通知操作")
             new_bulk_status=st.selectbox("批量狀態",["未讀","已讀","處理中","已回覆","已關閉"],key="bulk_admin_message_status")
@@ -158,6 +161,8 @@ def render():
                     ok,_=reject(admin_uid,rid);done+=1 if ok else 0
                 st.success(f"已拒絕 {done} 筆申請");st.rerun()
     with tabs[5]:
+        notice=st.session_state.pop("system_settings_notice",None)
+        if notice:st.success(notice)
         s=settings()
         account_limit=st.number_input("平台帳號數量上限",min_value=1,max_value=100000,value=int(s.get("account_limit","500")),step=10)
         st.caption("目前預設 500。此上限只限制一般註冊；授權註冊不受此上限影響，但必須經管理員批准後才能登入。")
@@ -188,8 +193,11 @@ def render():
         help_guide=st.text_area("操作說明（支援 Markdown）",value=s.get("help_guide",""),height=260)
         if st.button("儲存系統設定",use_container_width=True):
             values={"account_limit":account_limit,"initial_traffic":initial,"traffic_max":traffic_max,"traffic_min":traffic_min,"traffic_per_100k_month":traffic_per,"admin_email":email,"bank_name":bank,"bank_holder":holder,"transfer_account":account,"transfer_note":transfer_note,"home_hero_title":hero_title,"home_hero_subtitle":hero_subtitle,"home_hero_width":hero_width,"home_hero_height":hero_height,"home_hero_title_size":hero_title_size,"home_hero_subtitle_size":hero_subtitle_size,"help_changelog":help_changelog,"help_guide":help_guide}
-            for k,v in values.items():save_setting(st.session_state.user["id"],k,v)
-            st.success("設定已儲存")
+            ok,msg=save_settings(st.session_state.user["id"],values)
+            (st.success if ok else st.error)(msg)
+            if ok:
+                st.session_state.system_settings_notice="✅ 更新日誌、操作說明與系統設定已成功寫入資料庫"
+                st.rerun()
     with tabs[6]:
         logs=admin_audit_logs(st.session_state.user["id"])
         if logs:st.dataframe(logs,use_container_width=True,hide_index=True)

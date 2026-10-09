@@ -27,6 +27,17 @@ def apply_theme(mode="dark"):
         [data-testid="stNumberInput"] button{background:#f8fafc!important;border-color:#cbd5e1!important}
         [data-testid="stNumberInput"] button:hover{background:#eff6ff!important;border-color:#2563eb!important}
         [data-testid="stTextInput"] label p,[data-testid="stNumberInput"] label p,[data-testid="stTextArea"] label p,[data-testid="stSelectbox"] label p{color:#334155!important;font-weight:650!important}
+        [data-testid="stDateInput"] label p,[data-testid="stTimeInput"] label p,[data-testid="stMultiSelect"] label p,[data-testid="stRadio"] label p,[data-testid="stCheckbox"] label p{color:#334155!important;font-weight:650!important}
+        [data-testid="stDateInput"] div[data-baseweb="input"]>div,[data-testid="stTimeInput"] div[data-baseweb="input"]>div{background:#ffffff!important;border:1px solid #94a3b8!important;border-radius:10px!important}
+        [data-testid="stDateInput"] input,[data-testid="stTimeInput"] input{background:#ffffff!important;color:#0f172a!important;-webkit-text-fill-color:#0f172a!important}
+        [data-testid="stDateInput"] button,[data-testid="stTimeInput"] button{color:#1d4ed8!important;background:#f8fafc!important}
+        div[data-baseweb="popover"],div[data-baseweb="menu"],div[data-baseweb="calendar"]{background:#ffffff!important;color:#0f172a!important}
+        div[data-baseweb="popover"] *,div[data-baseweb="menu"] *,div[data-baseweb="calendar"] *{color:#0f172a!important}
+        div[data-baseweb="menu"] li{background:#ffffff!important;color:#0f172a!important}
+        div[data-baseweb="menu"] li:hover{background:#eff6ff!important}
+        [aria-selected="true"]{background:#dbeafe!important;color:#1e3a8a!important}
+        [data-testid="stCheckbox"] span,[data-testid="stRadio"] span{color:#0f172a!important}
+        [data-testid="stMultiSelect"] [data-baseweb="tag"]{background:#dbeafe!important;color:#1e3a8a!important}
         [data-testid="stCaptionContainer"] p,.stCaption p{color:#475569!important}
         [data-testid="stAlert"] p,[data-testid="stAlert"] span{color:inherit!important}
         """

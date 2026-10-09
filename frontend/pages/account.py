@@ -10,7 +10,7 @@ def render_login():
         u,msg=login(e,p)
         if u:
             try:
-                establish_browser_session(u,remember=True);merge_guest_favorites(u["id"]);st.session_state.page="首頁";st.rerun()
+                establish_browser_session(u,remember=True);merge_guest_favorites(u["id"]);st.session_state.theme_mode=u.get("theme_preference","dark");st.session_state.theme_identity=u["id"];st.session_state.page="首頁";st.rerun()
             except Exception:
                 st.warning("一個裝置不可同時保持兩個帳號的登入狀態，請先登出目前帳號後再登入。")
                 return

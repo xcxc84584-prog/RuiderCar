@@ -99,3 +99,20 @@ def merge_guest_favorites(uid):
     ids=guest_favorite_ids()
     if ids:add_favorites(uid,ids);set_guest_favorite_ids([])
     return len(ids)
+
+
+THEME_COOKIE="ruidercar_theme"
+def browser_theme_preference():
+    try:
+        value=_controller().get(THEME_COOKIE)
+        if isinstance(value,dict):value=value.get("value")
+        return value if value in ("dark","light") else None
+    except Exception:return None
+def save_browser_theme_preference(mode):
+    mode=str(mode or "dark").lower()
+    if mode not in ("dark","light"):return False
+    try:
+        expiry=datetime.now()+timedelta(days=365)
+        _controller().set(THEME_COOKIE,mode,path="/",expires=expiry,max_age=365*24*60*60,secure=True,same_site="lax")
+        return True
+    except Exception:return False
