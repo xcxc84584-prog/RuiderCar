@@ -18,10 +18,15 @@ def apply_theme(mode="dark"):
         div.stButton>button{border-radius:10px;border:1px solid #2563eb;background:#ffffff;color:#1d4ed8;font-weight:650}
         div.stButton>button p{color:#1d4ed8!important}
         div.stButton>button:hover{background:#eff6ff;border-color:#1d4ed8}
-        div[data-baseweb="input"]>div,div[data-baseweb="select"]>div,textarea{background:#ffffff!important;color:#111827!important;border-color:#94a3b8!important}
-        input,textarea{color:#111827!important;-webkit-text-fill-color:#111827!important}
-        input::placeholder,textarea::placeholder{color:#64748b!important;-webkit-text-fill-color:#64748b!important}
-        [data-baseweb="select"] span{color:#111827!important}
+        div[data-baseweb="input"]>div,div[data-baseweb="select"]>div,textarea{background:#ffffff!important;color:#0f172a!important;border:1px solid #94a3b8!important;border-radius:10px!important;box-shadow:0 1px 2px rgba(15,23,42,.05)!important}
+        div[data-baseweb="input"]>div:hover,div[data-baseweb="select"]>div:hover,textarea:hover{border-color:#64748b!important}
+        div[data-baseweb="input"]>div:focus-within,div[data-baseweb="select"]>div:focus-within,textarea:focus{border-color:#2563eb!important;box-shadow:0 0 0 3px rgba(37,99,235,.14)!important}
+        input,textarea{color:#0f172a!important;-webkit-text-fill-color:#0f172a!important;background:#ffffff!important;font-weight:500!important}
+        input::placeholder,textarea::placeholder{color:#64748b!important;-webkit-text-fill-color:#64748b!important;opacity:1!important}
+        [data-baseweb="select"] span{color:#0f172a!important}
+        [data-testid="stNumberInput"] button{background:#f8fafc!important;border-color:#cbd5e1!important}
+        [data-testid="stNumberInput"] button:hover{background:#eff6ff!important;border-color:#2563eb!important}
+        [data-testid="stTextInput"] label p,[data-testid="stNumberInput"] label p,[data-testid="stTextArea"] label p,[data-testid="stSelectbox"] label p{color:#334155!important;font-weight:650!important}
         [data-testid="stCaptionContainer"] p,.stCaption p{color:#475569!important}
         [data-testid="stAlert"] p,[data-testid="stAlert"] span{color:inherit!important}
         """

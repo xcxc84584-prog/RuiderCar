@@ -12,6 +12,12 @@ def render():
     x=get_listing(lid) if lid else None
     if not x:st.warning("請先選擇商品。");return
     current=st.session_state.get("user")
+    if st.session_state.get("detail_origin")=="首頁":
+        if st.button("← 返回瀏覽位置",key="detail_back_to_browse",use_container_width=False):
+            st.session_state.home_restore_listing=st.session_state.get("home_return_listing",x["id"])
+            st.session_state.page="首頁"
+            st.session_state.pop("detail_origin",None)
+            st.rerun()
     if x["status"]!="active" and (not current or current["id"]!=x["seller_id"]):
         st.warning("此商品目前未上架。");return
     imgs=x.get("images") or []

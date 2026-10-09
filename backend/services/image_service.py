@@ -1,5 +1,6 @@
 from pathlib import Path
 from uuid import uuid4
+from functools import lru_cache
 from sqlalchemy import select
 from backend.database import SessionLocal,PROJECT_ROOT
 from backend.models.entities import Listing,ListingImage
@@ -61,14 +62,21 @@ def move_image(uid,image_id,direction):
         if j<0 or j>=len(xs):return False,"已在最前或最後"
         xs[i].sort_order,xs[j].sort_order=xs[j].sort_order,xs[i].sort_order
         db.commit();return True,"照片順序已更新"
+@lru_cache(maxsize=256)
+def _cached_image_data(image_id):
+    with SessionLocal() as db:
+        row=db.get(ListingImage,image_id)
+        if row and row.image_data:return row.image_data
+        return None
 def image_source(img):
     data=img.get("image_data")
     if data:return data
     image_id=img.get("id")
     if image_id:
+        data=_cached_image_data(int(image_id))
+        if data:return data
         with SessionLocal() as db:
             row=db.get(ListingImage,image_id)
-            if row and row.image_data:return row.image_data
             fp=(row.file_path if row else "") or img.get("file_path") or ""
     else:fp=img.get("file_path") or ""
     if fp:

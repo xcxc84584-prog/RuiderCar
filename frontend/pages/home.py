@@ -1,4 +1,5 @@
 import streamlit as st
+import streamlit.components.v1 as components
 import html,math
 from backend.services.admin_service import settings
 from backend.services.listing_service import list_public
@@ -6,7 +7,11 @@ from frontend.components.cards import vehicle_card
 from backend.services.message_service import unread_count
 PAGE_SIZE=9
 def _open(lid):
-    st.session_state.selected_listing=lid;st.session_state.page="商品詳細";st.rerun()
+    st.session_state.home_return_listing=int(lid)
+    st.session_state.detail_origin="首頁"
+    st.session_state.selected_listing=lid
+    st.session_state.page="商品詳細"
+    st.rerun()
 def render():
     cfg=settings()
     title=html.escape(cfg.get("home_hero_title","RuiderCar 商品交易平台"));subtitle=html.escape(cfg.get("home_hero_subtitle",""))
@@ -52,13 +57,16 @@ def render():
     page=max(1,min(int(st.session_state.get("home_page",1)),pages))
     st.session_state.home_page=page
     start=(page-1)*PAGE_SIZE;visible=cars[start:start+PAGE_SIZE]
+    return_lid=st.session_state.get("home_restore_listing")
     if show_images:
         cols=st.columns(3)
         for i,x in enumerate(visible):
             with cols[i%3]:
+                st.markdown(f'<div id="listing-{x["id"]}"></div>',unsafe_allow_html=True)
                 if vehicle_card(x,show_image=True):_open(x["id"])
     else:
         for x in visible:
+            st.markdown(f'<div id="listing-{x["id"]}"></div>',unsafe_allow_html=True)
             with st.container(border=True):
                 c1,c2=st.columns([5,1])
                 with c1:
@@ -70,6 +78,15 @@ def render():
                 with c2:
                     if st.button("查看",key=f'home_text_view_{x["id"]}',use_container_width=True):_open(x["id"])
 
+    if return_lid:
+        components.html(f"""<script>
+        const id='listing-{int(return_lid)}';
+        setTimeout(()=>{{
+          const el=window.parent.document.getElementById(id);
+          if(el) el.scrollIntoView({{behavior:'instant',block:'center'}});
+        }},80);
+        </script>""",height=0)
+        st.session_state.pop("home_restore_listing",None)
     st.divider()
     st.caption(f"第 {page}/{pages} 頁｜每頁最多 {PAGE_SIZE} 件商品。僅載入目前頁面的商品封面。")
     prev_col,page_col,next_col=st.columns([1,2,1])
