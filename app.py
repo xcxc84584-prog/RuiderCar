@@ -5,8 +5,8 @@ from frontend.router import route
 from frontend.auth_session import restore_browser_session,logout_browser_session,browser_theme_preference,save_browser_theme_preference
 from backend.services.auth_service import fresh_user
 from backend.services.account_service import update_theme_preference
-from backend.services.ip_service import client_ip_from_streamlit,touch_ip,cleanup_old_logs
-import time
+from backend.services.ip_service import client_ip_from_streamlit,client_identity,touch_ip,cleanup_old_logs
+import time,secrets
 from datetime import datetime
 from backend.utils.timezone import utc_now
 st.set_page_config(page_title="RuiderCar 車輛交易平台",page_icon="🚙",layout="wide",initial_sidebar_state="expanded")
@@ -15,10 +15,15 @@ def _bootstrap():
     seed()
     return True
 _bootstrap()
+restore_browser_session()
 client_ip=client_ip_from_streamlit(st)
+if "guest_identity_id" not in st.session_state:st.session_state.guest_identity_id=secrets.token_hex(8)
+_gate_user=st.session_state.get("user")
+_gate_uid=_gate_user.get("id") if _gate_user else None
+client_identity_key=client_identity(client_ip,_gate_uid,st.session_state.guest_identity_id)
 if "ip_cleanup_at" not in st.session_state or time.time()-st.session_state.ip_cleanup_at>600:
     cleanup_old_logs();st.session_state.ip_cleanup_at=time.time()
-ip_gate=touch_ip(client_ip,st.session_state.get("user",{}).get("id") if st.session_state.get("user") else None)
+ip_gate=touch_ip(client_identity_key,_gate_uid)
 if not ip_gate.get("allowed",True):
     status=ip_gate.get("status")
     if status=="queue":
@@ -39,7 +44,6 @@ _lp=None
 if st.session_state.pop("show_loading",False):
     _lp=st.progress(35,text="正在載入頁面…")
 if "page" not in st.session_state:st.session_state.page="首頁"
-restore_browser_session()
 if st.session_state.get("user"):
     if not st.session_state.get("impersonator_admin"):
         latest=fresh_user(st.session_state.user["id"])

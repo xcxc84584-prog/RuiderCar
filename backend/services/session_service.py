@@ -13,7 +13,7 @@ def create_login_session(user_id,remember=False,ip_address=""):
     token=secrets.token_urlsafe(48)
     lifetime=timedelta(days=REMEMBER_DAYS) if remember else timedelta(hours=SESSION_HOURS)
     with SessionLocal() as db:
-        db.add(LoginSession(user_id=user_id,token_hash=_hash(token),ip_address=str(ip_address or "")[:64],expires_at=datetime.utcnow()+lifetime))
+        db.add(LoginSession(user_id=user_id,token_hash=_hash(token),ip_address=str(ip_address or "")[:128],expires_at=datetime.utcnow()+lifetime))
         db.commit()
     return token
 def restore_login_session(token):

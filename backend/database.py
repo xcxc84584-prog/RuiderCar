@@ -43,7 +43,10 @@ def init_db():
                 "ALTER TABLE login_sessions ADD COLUMN IF NOT EXISTS ip_address VARCHAR(64) NOT NULL DEFAULT ''",
                 "ALTER TABLE ip_address_records ADD COLUMN IF NOT EXISTS rate_window_started TIMESTAMP NULL",
                 "ALTER TABLE ip_address_records ADD COLUMN IF NOT EXISTS rate_window_count INTEGER NOT NULL DEFAULT 0",
-                "ALTER TABLE ip_address_records ADD COLUMN IF NOT EXISTS custom_request_limit INTEGER NULL"
+                "ALTER TABLE ip_address_records ADD COLUMN IF NOT EXISTS custom_request_limit INTEGER NULL",
+                "ALTER TABLE ip_address_records ALTER COLUMN ip_address TYPE VARCHAR(128)",
+                "ALTER TABLE ip_activity_logs ALTER COLUMN ip_address TYPE VARCHAR(128)",
+                "ALTER TABLE login_sessions ALTER COLUMN ip_address TYPE VARCHAR(128)"
             ]
             for sql in statements:conn.execute(text(sql))
         elif dialect=="sqlite":

@@ -1,4 +1,4 @@
-import csv,io,ipaddress
+import csv,io,ipaddress,secrets
 from datetime import timedelta
 from sqlalchemy import select,func,delete,text
 from backend.database import SessionLocal
@@ -15,6 +15,25 @@ def normalize_ip(value):
         if isinstance(addr,ipaddress.IPv6Address) and addr.ipv4_mapped:return str(addr.ipv4_mapped)
         return str(addr)
     except ValueError:return "unknown"
+
+def client_identity(ip,user_id=None,guest_id=None):
+    base=normalize_ip(ip)
+    if user_id is not None:
+        return f"{base}(account:{int(user_id)})"
+    gid=str(guest_id or "guest")[:16]
+    return f"{base}(guest:{gid})"
+
+def identity_base_ip(value):
+    raw=str(value or "")
+    return normalize_ip(raw.split("(",1)[0])
+
+def normalize_identity(value):
+    raw=str(value or "").strip()
+    if "(" in raw and raw.endswith(")"):
+        base,suffix=raw.split("(",1)
+        base=normalize_ip(base)
+        return f"{base}({suffix}" if base!="unknown" else "unknown"
+    return normalize_ip(raw)
 
 def client_ip_from_streamlit(st):
     try:
@@ -50,17 +69,20 @@ def _visit_log_due(db,ip,now):
     return last is None or (now-last)>=timedelta(seconds=30)
 
 def ip_security_capability(ip):
-    ip=normalize_ip(ip)
-    if ip=="unknown":return {"usable":False,"reason":"無法取得 Client IP"}
+    identity=str(ip or "")
+    base=identity_base_ip(identity)
+    if base=="unknown":return {"usable":False,"reason":"無法取得 Client IP"}
     try:
-        addr=ipaddress.ip_address(ip)
-        if addr.is_loopback:return {"usable":False,"reason":"目前只取得 Streamlit/Proxy localhost，已停用 IP 封禁與排隊以避免誤封整站"}
+        addr=ipaddress.ip_address(base)
+        if addr.is_loopback:
+            if "(account:" in identity or "(guest:" in identity:return {"usable":True,"reason":"Streamlit Cloud localhost fallback：以 IP + Account/Guest ID 區分用戶（非真實 Public IP）"}
+            return {"usable":False,"reason":"目前只取得 Streamlit/Proxy localhost，缺少帳號/訪客識別"}
         if addr.is_unspecified:return {"usable":False,"reason":"取得 unspecified IP"}
-        return {"usable":True,"reason":"已取得可區分的 Client IP；此為應用層識別，仍不等同 CDN/WAF 級來源驗證"}
+        return {"usable":True,"reason":"以 IP + Account/Guest ID 作為應用層識別；不等同 CDN/WAF 級真實來源驗證"}
     except ValueError:return {"usable":False,"reason":"IP 格式無效"}
 
 def touch_ip(ip,user_id=None):
-    ip=normalize_ip(ip);now=utc_now();rate_limit,active_limit,_=_ints();cap=ip_security_capability(ip)
+    ip=normalize_identity(ip);now=utc_now();rate_limit,active_limit,_=_ints();cap=ip_security_capability(ip)
     if ip=="unknown":return {"allowed":True,"status":"unknown","queue_position":0,"rate":0,"security_usable":False,"security_reason":cap["reason"]}
     with SessionLocal() as db:
         if db.bind.dialect.name=="postgresql":db.execute(text("SELECT pg_advisory_xact_lock(728201)"))
@@ -113,7 +135,7 @@ def admin_ip_rows(admin_uid,keyword="",status="all",limit=300):
 
 def admin_set_ip_status(admin_uid,ip,status):
     if status not in ("normal","whitelist","blacklist"):return False,"不支援的狀態"
-    ip=normalize_ip(ip)
+    ip=normalize_identity(ip)
     with SessionLocal() as db:
         admin=db.get(User,admin_uid);rec=db.get(IpAddressRecord,ip)
         if not admin or admin.role!="admin":return False,"沒有管理員權限"
@@ -123,7 +145,7 @@ def admin_set_ip_status(admin_uid,ip,status):
         db.add(IpActivityLog(ip_address=ip,user_id=admin_uid,event=f"ADMIN_{status.upper()}",created_at=utc_now()));db.commit();return True,f"{ip} 已設定為 {status}"
 
 def admin_set_ip_request_limit(admin_uid,ip,limit=None):
-    ip=normalize_ip(ip)
+    ip=normalize_identity(ip)
     with SessionLocal() as db:
         admin=db.get(User,admin_uid);rec=db.get(IpAddressRecord,ip)
         if not admin or admin.role!="admin":return False,"沒有管理員權限"
@@ -141,7 +163,7 @@ def ip_history(admin_uid,ip,limit=100):
     with SessionLocal() as db:
         admin=db.get(User,admin_uid)
         if not admin or admin.role!="admin":return []
-        xs=db.scalars(select(IpActivityLog).where(IpActivityLog.ip_address==normalize_ip(ip)).order_by(IpActivityLog.created_at.desc()).limit(limit)).all()
+        xs=db.scalars(select(IpActivityLog).where(IpActivityLog.ip_address==normalize_identity(ip)).order_by(IpActivityLog.created_at.desc()).limit(limit)).all()
         return [{"ID":x.id,"時間":taipei_text(x.created_at),"事件":x.event,"User ID":x.user_id,"說明":x.detail} for x in xs]
 
 def export_ip_log_csv(admin_uid):
@@ -165,7 +187,7 @@ def delete_ip_logs_for_ip(admin_uid,ip,include_greylist=False):
     with SessionLocal() as db:
         admin=db.get(User,admin_uid)
         if not admin or admin.role!="admin":return False,"沒有管理員權限"
-        q=delete(IpActivityLog).where(IpActivityLog.ip_address==normalize_ip(ip))
+        q=delete(IpActivityLog).where(IpActivityLog.ip_address==normalize_identity(ip))
         if not include_greylist:q=q.where(IpActivityLog.event!="GREYLIST")
         result=db.execute(q);db.commit();return True,f"已刪除 {result.rowcount or 0} 筆 LOG"
 
@@ -191,10 +213,10 @@ def delete_greylist_history(admin_uid,log_id=None,ip=None):
         admin=db.get(User,admin_uid)
         if not admin or admin.role!="admin":return False,"沒有管理員權限"
         if log_id is not None:q=delete(IpActivityLog).where(IpActivityLog.id==int(log_id),IpActivityLog.event=="GREYLIST")
-        elif ip:q=delete(IpActivityLog).where(IpActivityLog.ip_address==normalize_ip(ip),IpActivityLog.event=="GREYLIST")
+        elif ip:q=delete(IpActivityLog).where(IpActivityLog.ip_address==normalize_identity(ip),IpActivityLog.event=="GREYLIST")
         else:return False,"缺少刪除目標"
         result=db.execute(q);db.commit();return True,f"已刪除 {result.rowcount or 0} 筆灰名單歷史"
 
 def ip_diagnostics(ip):
     cap=ip_security_capability(ip)
-    return {"ip":normalize_ip(ip),"source":"st.context.ip_address / Streamlit context","security_usable":cap["usable"],"reason":cap["reason"]}
+    return {"ip":normalize_identity(ip),"source":"st.context.ip_address / Streamlit context","security_usable":cap["usable"],"reason":cap["reason"]}
