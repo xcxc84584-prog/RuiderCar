@@ -1,6 +1,6 @@
 from datetime import datetime,timedelta
 import math
-from sqlalchemy import select
+from sqlalchemy import select,func
 from backend.database import SessionLocal
 from backend.models.entities import Listing,ListingImage,Favorite,Appointment,Message,User,SystemSetting,TrafficTransaction
 def _setting(db,key,default):
@@ -11,6 +11,38 @@ def list_public(search="",vehicles_only=False):
         if vehicles_only:q=q.where(Listing.product_type=="vehicle")
         if search:q=q.where(Listing.title.contains(search))
         return [row_to_dict(x) for x in db.scalars(q).all()]
+
+def public_catalog_bounds(search=""):
+    with SessionLocal() as db:
+        q=select(func.count(Listing.id),func.min(Listing.price),func.max(Listing.price)).where(Listing.status=="active")
+        if search:q=q.where(Listing.title.ilike(f"%{search}%"))
+        count,min_price,max_price=db.execute(q).one()
+        return int(count or 0),int(min_price or 0),int(max_price or 0)
+def list_public_page(search="",min_price=None,max_price=None,page=1,page_size=9):
+    page=max(1,int(page));page_size=max(1,min(int(page_size),60))
+    with SessionLocal() as db:
+        filters=[Listing.status=="active"]
+        if search:filters.append(Listing.title.ilike(f"%{search}%"))
+        if min_price is not None:filters.append(Listing.price>=int(min_price))
+        if max_price is not None:filters.append(Listing.price<=int(max_price))
+        total=int(db.scalar(select(func.count(Listing.id)).where(*filters)) or 0)
+        q=(select(Listing,User.name,User.email,User.phone,User.default_meeting_address)
+           .join(User,User.id==Listing.seller_id)
+           .where(*filters).order_by(Listing.created_at.desc())
+           .offset((page-1)*page_size).limit(page_size))
+        rows=db.execute(q).all();out=[]
+        listing_ids=[x[0].id for x in rows]
+        covers={}
+        if listing_ids:
+            imgs=db.scalars(select(ListingImage).where(ListingImage.listing_id.in_(listing_ids)).order_by(ListingImage.listing_id,ListingImage.sort_order,ListingImage.id)).all()
+            for i in imgs:
+                if i.listing_id not in covers:covers[i.listing_id]={"id":i.id,"file_path":i.file_path,"mime_type":i.mime_type,"sort_order":i.sort_order}
+        for x,name,email,phone,address in rows:
+            d={c.name:getattr(x,c.name) for c in x.__table__.columns}
+            d["images"]=[covers[x.id]] if x.id in covers else []
+            d["seller_name"]=name or "未知賣家";d["seller_email"]=email or "";d["seller_phone"]=phone or "";d["seller_default_meeting_address"]=address or ""
+            out.append(d)
+        return out,total
 def user_listings(uid):
     with SessionLocal() as db:
         return [row_to_dict(x) for x in db.scalars(select(Listing).where(Listing.seller_id==uid).order_by(Listing.created_at.desc())).all()]

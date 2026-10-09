@@ -177,10 +177,26 @@ def render():
         ip_status=c2.selectbox("狀態",["all","normal","whitelist","greylist","blacklist"],key="admin_ip_status")
         rows=admin_ip_rows(st.session_state.user["id"],ip_keyword,ip_status)
         st.caption(f"目前列出 {len(rows)} 個 IP。請求速度為 RuiderCar 應用層 requests/min，並非實體網路 Mbps。")
+        selected_set=set(st.session_state.get("admin_ip_selected",[]))
+        visible_ips=[r["ip"] for r in rows]
+        sa1,sa2,sa3=st.columns([1,1,2])
+        if sa1.button("全選目前搜尋結果",disabled=not rows,width="stretch",key="admin_ip_select_all_btn"):
+            selected_set.update(visible_ips);st.session_state.admin_ip_selected=list(selected_set)
+            for ip in visible_ips:st.session_state[f'ip_select_{ip}']=True
+            st.rerun()
+        if sa2.button("取消目前選取",disabled=not rows,width="stretch",key="admin_ip_clear_visible_btn"):
+            selected_set.difference_update(visible_ips);st.session_state.admin_ip_selected=list(selected_set)
+            for ip in visible_ips:st.session_state[f'ip_select_{ip}']=False
+            st.rerun()
+        sa3.caption(f"目前已選取 {len(selected_set)} 個 Identity")
         selected_ip_records=[]
-        select_all=st.checkbox("全選目前搜尋結果",key="admin_ip_select_all") if rows else False
         for r in rows:
-            if st.checkbox(f'選取 {r["ip"]}',value=select_all,key=f'ip_select_{r["ip"]}'):selected_ip_records.append(r["ip"])
+            key=f'ip_select_{r["ip"]}'
+            if key not in st.session_state:st.session_state[key]=r["ip"] in selected_set
+            checked=st.checkbox(f'選取 {r["ip"]}',key=key)
+            if checked:selected_set.add(r["ip"]);selected_ip_records.append(r["ip"])
+            else:selected_set.discard(r["ip"])
+            st.session_state.admin_ip_selected=list(selected_set)
             with st.expander(f'{r["ip"]}｜{r["status"]}｜{r["requests/min"]} req/min｜最後 {r["last_seen"]}'):
                 st.write(f'首次訪問：{r["first_seen"]}')
                 st.write(f'累計請求：{r["request_count"]}｜最高：{r["peak"]} requests/min')
@@ -203,17 +219,21 @@ def render():
                     bar=st.progress(35,text="正在更新 IP 狀態…");ok,msg=admin_set_ip_status(st.session_state.user["id"],r["ip"],"whitelist");bar.progress(100,text="更新完成");st.session_state.ip_admin_notice=msg;st.session_state.admin_active_tab="IP管理";st.rerun()
                 if c.button("恢復一般",key=f'ip_normal_{r["ip"]}',width="stretch"):
                     bar=st.progress(35,text="正在更新 IP 狀態…");ok,msg=admin_set_ip_status(st.session_state.user["id"],r["ip"],"normal");bar.progress(100,text="更新完成");st.session_state.ip_admin_notice=msg;st.session_state.admin_active_tab="IP管理";st.rerun()
-                hist=ip_history(st.session_state.user["id"],r["ip"],100)
-                if hist:
-                    st.dataframe(hist,width="stretch",hide_index=True)
-                    ids=[x["ID"] for x in hist if x["事件"]!="GREYLIST"]
-                    if ids:
-                        selected=st.selectbox("選擇要刪除的一般 LOG ID",ids,key=f'log_delete_select_{r["ip"]}')
-                        if st.button("刪除選取 LOG",key=f'log_delete_{r["ip"]}'):
-                            ok,msg=delete_ip_log(st.session_state.user["id"],selected);(st.success if ok else st.error)(msg);st.session_state.admin_active_tab="IP管理";st.rerun()
-                    if st.checkbox("確認刪除此 IP 的一般 LOG",key=f'confirm_ip_logs_{r["ip"]}'):
-                        if st.button("刪除此 IP 一般 LOG",key=f'delete_ip_logs_{r["ip"]}',type="primary"):
-                            ok,msg=delete_ip_logs_for_ip(st.session_state.user["id"],r["ip"]);(st.success if ok else st.error)(msg);st.session_state.admin_active_tab="IP管理";st.rerun()
+                load_hist=st.toggle("載入完整活動歷史",value=False,key=f'load_ip_history_{r["ip"]}')
+                if load_hist:
+                    with st.spinner("載入活動歷史…"):
+                        hist=ip_history(st.session_state.user["id"],r["ip"],100)
+                    if hist:
+                        st.dataframe(hist,width="stretch",hide_index=True)
+                        ids=[x["ID"] for x in hist if x["事件"]!="GREYLIST"]
+                        if ids:
+                            selected=st.selectbox("選擇要刪除的一般 LOG ID",ids,key=f'log_delete_select_{r["ip"]}')
+                            if st.button("刪除選取 LOG",key=f'log_delete_{r["ip"]}'):
+                                ok,msg=delete_ip_log(st.session_state.user["id"],selected);(st.success if ok else st.error)(msg);st.session_state.admin_active_tab="IP管理";st.rerun()
+                        if st.checkbox("確認刪除此 IP 的一般 LOG",key=f'confirm_ip_logs_{r["ip"]}'):
+                            if st.button("刪除此 IP 一般 LOG",key=f'delete_ip_logs_{r["ip"]}',type="primary"):
+                                ok,msg=delete_ip_logs_for_ip(st.session_state.user["id"],r["ip"]);(st.success if ok else st.error)(msg);st.session_state.admin_active_tab="IP管理";st.rerun()
+                    else:st.caption("此 Identity 沒有活動歷史。")
         if selected_ip_records:
             st.divider();st.subheader("批量 IP Identity 操作")
             st.caption(f"已選取 {len(selected_ip_records)} 個 Identity。刪除 Identity 時會刪除其一般 LOG，但保留灰名單歷史。")
@@ -224,6 +244,9 @@ def render():
                 ok,msg,_=admin_delete_ip_records(st.session_state.user["id"],selected_ip_records)
                 bar.progress(100,text="處理完成")
                 st.session_state.ip_admin_notice=msg
+                if ok:
+                    deleted=set(selected_ip_records);st.session_state.admin_ip_selected=[x for x in st.session_state.get("admin_ip_selected",[]) if x not in deleted]
+                    for ip in deleted:st.session_state.pop(f"ip_select_{ip}",None)
                 st.session_state.admin_active_tab="IP管理"
                 st.rerun()
         st.divider();st.subheader("灰名單歷史")
