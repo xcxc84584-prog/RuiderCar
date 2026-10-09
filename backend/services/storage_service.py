@@ -1,6 +1,6 @@
 from sqlalchemy import select,func
 from backend.database import SessionLocal
-from backend.models.entities import User,Listing,ListingImage,AdminAuditLog
+from backend.models.entities import User,Listing,ListingImage,AdminAuditLog,IpAddressRecord
 from backend.services.admin_service import settings
 from backend.utils.timezone import utc_now
 MB=1024*1024
@@ -14,14 +14,18 @@ def storage_usage_bytes(user_id):
         value=db.scalar(select(func.coalesce(func.sum(func.length(ListingImage.image_data)),0)).join(Listing,Listing.id==ListingImage.listing_id).where(Listing.seller_id==int(user_id),ListingImage.image_data.is_not(None)))
         return int(value or 0)
 
+def _account_whitelisted(db,user_id):
+    suffix=f"(account:{int(user_id)})"
+    return db.scalar(select(func.count(IpAddressRecord.ip_address)).where(IpAddressRecord.status=="whitelist",IpAddressRecord.ip_address.like(f"%{suffix}")))>0
+
 def storage_status(user_id):
     with SessionLocal() as db:
         user=db.get(User,int(user_id))
         if not user:return {"used_bytes":0,"used_mb":0.0,"limit_mb":default_storage_limit_mb(),"unlimited":False,"custom":False}
         used=storage_usage_bytes(user.id)
-        unlimited=user.role=="admin"
-        limit=None if unlimited else int(user.custom_storage_limit_mb or default_storage_limit_mb())
-        return {"used_bytes":used,"used_mb":round(used/MB,2),"limit_mb":limit,"unlimited":unlimited,"custom":user.custom_storage_limit_mb is not None}
+        unlimited=user.role=="admin" or _account_whitelisted(db,user.id)
+        limit=None if unlimited else default_storage_limit_mb()
+        return {"used_bytes":used,"used_mb":round(used/MB,2),"limit_mb":limit,"unlimited":unlimited,"custom":False}
 
 def admin_set_account_storage_limit(admin_uid,user_id,limit_mb=None):
     with SessionLocal() as db:

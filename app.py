@@ -103,16 +103,15 @@ with st.sidebar:
     st.markdown("#### 📊 資源使用狀態")
     current_rate=int(ip_gate.get("rate",0) or 0)
     if u:
-        if u.get("role")=="admin":
+        ss=storage_status(u["id"])
+        resource_exempt=u.get("role")=="admin" or bool(ip_gate.get("resource_exempt")) or ss.get("unlimited")
+        if resource_exempt:
             st.caption(f"IP 流量：{current_rate} req/min / Unlimited")
-            ss=storage_status(u["id"])
             st.caption(f'資料量：{ss["used_mb"]:.2f} MB / Unlimited')
         else:
-            rate_limit=int(ip_gate.get("effective_limit") or settings().get("ip_request_limit_per_minute","180"))
+            rate_limit=int(settings().get("ip_request_limit_per_minute","180"))
             st.caption(f"IP 流量：{current_rate} / {rate_limit} req/min")
-            ss=storage_status(u["id"])
-            storage_tag="（個別限制）" if ss.get("custom") else ""
-            st.caption(f'資料量：{ss["used_mb"]:.2f} / {ss["limit_mb"]} MB {storage_tag}')
+            st.caption(f'資料量：{ss["used_mb"]:.2f} / {ss["limit_mb"]} MB')
     else:
         rate_limit=int(settings().get("ip_request_limit_per_minute","180"))
         st.caption(f"IP 流量：{current_rate} / {rate_limit} req/min")

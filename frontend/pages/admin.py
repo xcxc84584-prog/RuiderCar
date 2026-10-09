@@ -3,13 +3,15 @@ from backend.services.admin_service import settings,save_setting,save_settings,u
 from backend.services.message_service import admin_messages,reply_admin,set_admin_message_status,delete_admin_messages,bulk_admin_message_status
 from backend.services.traffic_service import pending,approve,reject
 from backend.services.backup_service import make_backup
-from backend.services.ip_service import admin_ip_rows,admin_set_ip_status,ip_history,export_ip_log_csv,delete_ip_log,delete_ip_logs_for_ip,clear_ip_logs,greylist_history_ips,delete_greylist_history,ip_diagnostics,client_ip_from_streamlit,admin_set_ip_request_limit
+from backend.services.ip_service import admin_ip_rows,admin_set_ip_status,ip_history,export_ip_log_csv,delete_ip_log,delete_ip_logs_for_ip,clear_ip_logs,greylist_history_ips,delete_greylist_history,ip_diagnostics,client_ip_from_streamlit,admin_set_ip_request_limit,admin_delete_ip_records,publish_global_resource_limits
 from backend.services.storage_service import admin_set_account_storage_limit
 
 def render():
     if st.session_state.user.get("role")!="admin":st.error("沒有管理員權限");return
     st.title("管理員後台")
-    tabs=st.tabs(["Dashboard","會員／黑名單","授權註冊審核","管理員信箱","流量審核","IP管理","系統設定","稽核紀錄","資料備份"])
+    tab_labels=["Dashboard","會員／黑名單","授權註冊審核","管理員信箱","流量審核","IP管理","系統設定","稽核紀錄","資料備份"]
+    try:tabs=st.tabs(tab_labels,default=st.session_state.get("admin_active_tab","Dashboard"))
+    except TypeError:tabs=st.tabs(tab_labels)
     with tabs[0]:
         st.info("管理員後台。")
     with tabs[1]:
@@ -164,50 +166,43 @@ def render():
                 st.success(f"已拒絕 {done} 筆申請");st.rerun()
     with tabs[5]:
         st.subheader("IP 管理")
+        ip_notice=st.session_state.pop("ip_admin_notice",None)
+        if ip_notice:st.success(ip_notice)
         diag=ip_diagnostics(client_ip_from_streamlit(st))
         if diag["security_usable"]:st.success(f'目前 Client IP：{diag["ip"]}｜IP 安全控制可運作')
         else:st.warning(f'目前 Client IP：{diag["ip"]}｜安全降級模式：{diag["reason"]}')
-        st.caption("若 Streamlit Cloud 僅提供 127.0.0.1，系統仍記錄診斷流量，但不會以該 localhost 執行灰名單、黑名單自動封禁或 50-IP 排隊，避免誤封所有訪客。")
+        st.caption("Streamlit Cloud 若僅提供 127.0.0.1，RuiderCar 會以 IP + Account/Guest Identity 區分應用層用戶；此識別不等同真實 Public IP。")
         c1,c2=st.columns([3,1])
         ip_keyword=c1.text_input("搜尋 IP",key="admin_ip_search").strip()
         ip_status=c2.selectbox("狀態",["all","normal","whitelist","greylist","blacklist"],key="admin_ip_status")
         rows=admin_ip_rows(st.session_state.user["id"],ip_keyword,ip_status)
         st.caption(f"目前列出 {len(rows)} 個 IP。請求速度為 RuiderCar 應用層 requests/min，並非實體網路 Mbps。")
+        selected_ip_records=[]
+        select_all=st.checkbox("全選目前搜尋結果",key="admin_ip_select_all") if rows else False
         for r in rows:
+            if st.checkbox(f'選取 {r["ip"]}',value=select_all,key=f'ip_select_{r["ip"]}'):selected_ip_records.append(r["ip"])
             with st.expander(f'{r["ip"]}｜{r["status"]}｜{r["requests/min"]} req/min｜最後 {r["last_seen"]}'):
                 st.write(f'首次訪問：{r["first_seen"]}')
                 st.write(f'累計請求：{r["request_count"]}｜最高：{r["peak"]} requests/min')
                 if r["reason"]:st.warning(f'原因：{r["reason"]}')
                 if r["greylisted_until"]:st.caption(f'灰名單至：{r["greylisted_until"]}')
                 global_limit=int(settings().get("ip_request_limit_per_minute","180"))
-                if r.get("admin_exempt"):
-                    st.success("🛡️ Administrator－流量限制、資料量限制與 Active Queue 豁免；Request Rate / LOG 仍正常記錄。")
-                    st.info(f'資料量：{r.get("storage_used_mb",0):.2f} MB / Unlimited')
+                if r.get("resource_exempt"):
+                    label="Administrator" if r.get("admin_exempt") else "Whitelist"
+                    st.success(f"🛡️ {label}－流量限制、資料量限制與 Active Queue 豁免；Request Rate / LOG 仍正常記錄。")
+                    st.info(f'流量：{r.get("requests/min",0)} req/min / Unlimited｜資料量：{r.get("storage_used_mb",0):.2f} MB / Unlimited')
                 else:
-                    if r.get("custom_request_limit") is None:st.info(f'目前流量上限：{global_limit} requests/min（跟隨全站預設）')
-                    else:st.info(f'目前流量上限：{r["custom_request_limit"]} requests/min（此 IP 自訂）｜全站預設：{global_limit}')
-                    rl1,rl2=st.columns([2,1])
-                    custom_limit=rl1.number_input("此 IP 自訂流量上限（requests/min）",min_value=1,max_value=1000000,value=int(r.get("custom_request_limit") or global_limit),step=10,key=f'ip_rate_limit_{r["ip"]}')
-                    if rl1.button("更新此 IP 流量上限",key=f'ip_rate_save_{r["ip"]}',width="stretch"):
-                        ok,msg=admin_set_ip_request_limit(st.session_state.user["id"],r["ip"],custom_limit);(st.success if ok else st.error)(msg);st.rerun()
-                    if rl2.button("恢復全站預設",key=f'ip_rate_reset_{r["ip"]}',width="stretch"):
-                        ok,msg=admin_set_ip_request_limit(st.session_state.user["id"],r["ip"],None);(st.success if ok else st.error)(msg);st.rerun()
+                    st.info(f'目前流量上限：{global_limit} requests/min（全站統一設定）')
                     if r.get("account_id"):
                         global_storage=int(settings().get("default_storage_limit_mb","100"))
-                        st.info(f'資料量：{r.get("storage_used_mb",0):.2f} / {r.get("storage_limit_mb",global_storage)} MB'+("（個別限制）" if r.get("storage_custom") else "（跟隨全站預設）"))
-                        sl1,sl2=st.columns([2,1])
-                        storage_limit=sl1.number_input("此 Account 自訂資料量上限（MB）",min_value=1,max_value=102400,value=int(r.get("storage_limit_mb") or global_storage),step=10,key=f'storage_limit_{r["ip"]}')
-                        if sl1.button("更新此 Account 資料量上限",key=f'storage_save_{r["ip"]}',width="stretch"):
-                            ok,msg=admin_set_account_storage_limit(st.session_state.user["id"],r["account_id"],storage_limit);(st.success if ok else st.error)(msg);st.rerun()
-                        if sl2.button("恢復全站預設",key=f'storage_reset_{r["ip"]}',width="stretch"):
-                            ok,msg=admin_set_account_storage_limit(st.session_state.user["id"],r["account_id"],None);(st.success if ok else st.error)(msg);st.rerun()
+                        st.info(f'資料量：{r.get("storage_used_mb",0):.2f} / {global_storage} MB（全站統一設定）')
                 a,b,c=st.columns(3)
                 if a.button("加入黑名單",key=f'ip_black_{r["ip"]}',width="stretch"):
-                    ok,msg=admin_set_ip_status(st.session_state.user["id"],r["ip"],"blacklist");(st.success if ok else st.error)(msg);st.rerun()
+                    bar=st.progress(35,text="正在更新 IP 狀態…");ok,msg=admin_set_ip_status(st.session_state.user["id"],r["ip"],"blacklist");bar.progress(100,text="更新完成");st.session_state.ip_admin_notice=msg;st.session_state.admin_active_tab="IP管理";st.rerun()
                 if b.button("加入白名單",key=f'ip_white_{r["ip"]}',width="stretch"):
-                    ok,msg=admin_set_ip_status(st.session_state.user["id"],r["ip"],"whitelist");(st.success if ok else st.error)(msg);st.rerun()
+                    bar=st.progress(35,text="正在更新 IP 狀態…");ok,msg=admin_set_ip_status(st.session_state.user["id"],r["ip"],"whitelist");bar.progress(100,text="更新完成");st.session_state.ip_admin_notice=msg;st.session_state.admin_active_tab="IP管理";st.rerun()
                 if c.button("恢復一般",key=f'ip_normal_{r["ip"]}',width="stretch"):
-                    ok,msg=admin_set_ip_status(st.session_state.user["id"],r["ip"],"normal");(st.success if ok else st.error)(msg);st.rerun()
+                    bar=st.progress(35,text="正在更新 IP 狀態…");ok,msg=admin_set_ip_status(st.session_state.user["id"],r["ip"],"normal");bar.progress(100,text="更新完成");st.session_state.ip_admin_notice=msg;st.session_state.admin_active_tab="IP管理";st.rerun()
                 hist=ip_history(st.session_state.user["id"],r["ip"],100)
                 if hist:
                     st.dataframe(hist,width="stretch",hide_index=True)
@@ -215,10 +210,22 @@ def render():
                     if ids:
                         selected=st.selectbox("選擇要刪除的一般 LOG ID",ids,key=f'log_delete_select_{r["ip"]}')
                         if st.button("刪除選取 LOG",key=f'log_delete_{r["ip"]}'):
-                            ok,msg=delete_ip_log(st.session_state.user["id"],selected);(st.success if ok else st.error)(msg);st.rerun()
+                            ok,msg=delete_ip_log(st.session_state.user["id"],selected);(st.success if ok else st.error)(msg);st.session_state.admin_active_tab="IP管理";st.rerun()
                     if st.checkbox("確認刪除此 IP 的一般 LOG",key=f'confirm_ip_logs_{r["ip"]}'):
                         if st.button("刪除此 IP 一般 LOG",key=f'delete_ip_logs_{r["ip"]}',type="primary"):
-                            ok,msg=delete_ip_logs_for_ip(st.session_state.user["id"],r["ip"]);(st.success if ok else st.error)(msg);st.rerun()
+                            ok,msg=delete_ip_logs_for_ip(st.session_state.user["id"],r["ip"]);(st.success if ok else st.error)(msg);st.session_state.admin_active_tab="IP管理";st.rerun()
+        if selected_ip_records:
+            st.divider();st.subheader("批量 IP Identity 操作")
+            st.caption(f"已選取 {len(selected_ip_records)} 個 Identity。刪除 Identity 時會刪除其一般 LOG，但保留灰名單歷史。")
+            confirm_bulk=st.checkbox("我確認要批量刪除選取的 IP Identity",key="confirm_bulk_delete_ips")
+            if st.button(f"批量刪除（{len(selected_ip_records)}）",type="primary",width="stretch",disabled=not confirm_bulk,key="bulk_delete_ip_records"):
+                bar=st.progress(10,text="正在準備批量刪除…")
+                bar.progress(45,text=f"正在處理 {len(selected_ip_records)} 個 IP Identity…")
+                ok,msg,_=admin_delete_ip_records(st.session_state.user["id"],selected_ip_records)
+                bar.progress(100,text="處理完成")
+                st.session_state.ip_admin_notice=msg
+                st.session_state.admin_active_tab="IP管理"
+                st.rerun()
         st.divider();st.subheader("灰名單歷史")
         st.caption("灰名單歷史不受一般 IP LOG 保存天數影響，只會在管理員主動刪除時移除。非展開狀態只顯示最近 1 筆。")
         grey=greylist_history_ips(st.session_state.user["id"])
@@ -232,16 +239,16 @@ def render():
                 gid=st.selectbox("選擇灰名單歷史 ID",gids,key=f'grey_id_{g["ip"]}')
                 x1,x2=st.columns(2)
                 if x1.button("刪除選取灰名單歷史",key=f'grey_del_one_{g["ip"]}',width="stretch"):
-                    ok,msg=delete_greylist_history(st.session_state.user["id"],log_id=gid);(st.success if ok else st.error)(msg);st.rerun()
+                    ok,msg=delete_greylist_history(st.session_state.user["id"],log_id=gid);(st.success if ok else st.error)(msg);st.session_state.admin_active_tab="IP管理";st.rerun()
                 if x2.checkbox("確認刪除此 IP 全部灰名單歷史",key=f'grey_confirm_all_{g["ip"]}'):
                     if st.button("刪除此 IP 全部灰名單歷史",key=f'grey_del_all_{g["ip"]}',type="primary",width="stretch"):
-                        ok,msg=delete_greylist_history(st.session_state.user["id"],ip=g["ip"]);(st.success if ok else st.error)(msg);st.rerun()
+                        ok,msg=delete_greylist_history(st.session_state.user["id"],ip=g["ip"]);(st.success if ok else st.error)(msg);st.session_state.admin_active_tab="IP管理";st.rerun()
         st.divider()
         name,data=export_ip_log_csv(st.session_state.user["id"])
         st.download_button("下載 IP LOG (.csv)",data=data,file_name=name,mime="text/csv",width="stretch")
         if st.checkbox("我確認要清除全部一般 IP LOG（不含灰名單歷史）",key="confirm_clear_ip_logs"):
             if st.button("清空全部一般 IP LOG",type="primary",width="stretch"):
-                ok,msg=clear_ip_logs(st.session_state.user["id"]);(st.success if ok else st.error)(msg);st.rerun()
+                ok,msg=clear_ip_logs(st.session_state.user["id"]);(st.success if ok else st.error)(msg);st.session_state.admin_active_tab="IP管理";st.rerun()
     with tabs[6]:
         notice=st.session_state.pop("system_settings_notice",None)
         if notice:st.success(notice)
@@ -252,7 +259,7 @@ def render():
         active_ip_limit=ic2.number_input("同時 Active IP 上限",min_value=1,max_value=100000,value=int(s.get("active_ip_limit","50")),step=1)
         ip_log_retention_days=ic3.number_input("IP LOG 保存天數",min_value=1,max_value=3650,value=int(s.get("ip_log_retention_days","7")),step=1)
         default_storage_limit_mb=st.number_input("每 Account 預設資料量限制（MB）",min_value=1,max_value=102400,value=int(s.get("default_storage_limit_mb","100")),step=10)
-        st.caption("Active IP：最近 5 分鐘內有活動的 IP。超過請求門檻會進入灰名單 30 分鐘並撤銷該 IP 的登入 Session；白名單只豁免排隊限制。")
+        st.caption("Active IP：最近 5 分鐘內有活動的 IP。超過請求門檻會進入灰名單 30 分鐘並撤銷該 IP 的登入 Session；白名單與 Administrator 豁免流量限制、資料量限制與排隊；其餘一般帳號統一套用最新全站設定。")
         st.divider()
         account_limit=st.number_input("平台帳號數量上限",min_value=1,max_value=100000,value=int(s.get("account_limit","500")),step=10)
         st.caption("目前預設 500。此上限只限制一般註冊；授權註冊不受此上限影響，但必須經管理員批准後才能登入。")
@@ -286,7 +293,9 @@ def render():
             ok,msg=save_settings(st.session_state.user["id"],values)
             (st.success if ok else st.error)(msg)
             if ok:
-                st.session_state.system_settings_notice="✅ 更新日誌、操作說明與系統設定已成功寫入資料庫"
+                pub_ok,pub_msg=publish_global_resource_limits(st.session_state.user["id"])
+                st.session_state.system_settings_notice=("✅ 系統設定已成功寫入資料庫。"+pub_msg) if pub_ok else ("⚠️ 系統設定已儲存，但資源限制發佈失敗："+pub_msg)
+                st.session_state.admin_active_tab="系統設定"
                 st.rerun()
     with tabs[7]:
         logs=admin_audit_logs(st.session_state.user["id"])
