@@ -22,6 +22,25 @@ def render():
     show_images=st.checkbox("顯示圖片",value=True)
     cars=list_public(q)
     if not cars:st.info("目前沒有符合條件的商品。");return
+    prices=[int(x.get("price",0) or 0) for x in cars]
+    price_min=min(prices);price_max=max(prices)
+    st.subheader("價格區間")
+    if price_min==price_max:
+        st.caption(f"目前符合搜尋條件的商品價格皆為 NT$ {price_min:,}")
+        selected_min,selected_max=price_min,price_max
+    else:
+        selected_min,selected_max=st.slider(
+            "選擇商品價格區間",
+            min_value=price_min,
+            max_value=price_max,
+            value=(price_min,price_max),
+            step=max(1,(price_max-price_min)//100),
+            format="NT$ %d",
+            key="home_price_range"
+        )
+    cars=[x for x in cars if selected_min<=int(x.get("price",0) or 0)<=selected_max]
+    st.caption(f"價格篩選：NT$ {selected_min:,} ～ NT$ {selected_max:,}｜符合 {len(cars)} 件商品")
+    if not cars:st.info("目前價格區間內沒有符合條件的商品。");return
     pages=max(1,math.ceil(len(cars)/PAGE_SIZE))
     page=max(1,min(int(st.session_state.get("home_page",1)),pages))
     st.session_state.home_page=page
