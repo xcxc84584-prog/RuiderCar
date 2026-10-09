@@ -11,6 +11,7 @@ def _open(lid):
     st.session_state.detail_origin="首頁"
     st.session_state.selected_listing=lid
     st.session_state.page="商品詳細"
+    st.session_state.show_loading=True
     st.rerun()
 def render():
     cfg=settings()
@@ -70,7 +71,8 @@ def render():
             with st.container(border=True):
                 c1,c2=st.columns([5,1])
                 with c1:
-                    st.markdown(f'### {x["title"]}　NT$ {x["price"]:,}')
+                    st.markdown(f'### {x["title"]}')
+                    st.markdown(f'**NT$ {x["price"]:,}**')
                     typ="車輛" if x.get("product_type","vehicle")=="vehicle" else "常規"
                     st.caption(f'{typ}商品｜賣家：{x.get("seller_name","")}｜所在地：{x.get("location","")}')
                     if x.get("seller_default_meeting_address"):st.caption(f'常用交易／看貨地址：{x["seller_default_meeting_address"]}')
@@ -92,11 +94,11 @@ def render():
     prev_col,page_col,next_col=st.columns([1,2,1])
     with prev_col:
         if st.button("← 上一頁",disabled=page<=1,use_container_width=True,key="home_prev_page"):
-            st.session_state.home_page=page-1;st.rerun()
+            st.session_state.home_page=page-1;st.session_state.show_loading=True;st.rerun()
     with page_col:
         selected_page=st.selectbox("切換頁面",list(range(1,pages+1)),index=page-1,key="home_bottom_page",label_visibility="collapsed")
         if selected_page!=page:
-            st.session_state.home_page=selected_page;st.rerun()
+            st.session_state.home_page=selected_page;st.session_state.show_loading=True;st.rerun()
     with next_col:
         if st.button("下一頁 →",disabled=page>=pages,use_container_width=True,key="home_next_page"):
-            st.session_state.home_page=page+1;st.rerun()
+            st.session_state.home_page=page+1;st.session_state.show_loading=True;st.rerun()

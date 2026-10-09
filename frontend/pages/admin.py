@@ -3,11 +3,12 @@ from backend.services.admin_service import settings,save_setting,save_settings,u
 from backend.services.message_service import admin_messages,reply_admin,set_admin_message_status,delete_admin_messages,bulk_admin_message_status
 from backend.services.traffic_service import pending,approve,reject
 from backend.services.backup_service import make_backup
+from backend.services.ip_service import admin_ip_rows,admin_set_ip_status,ip_history,export_ip_log_csv
 
 def render():
     if st.session_state.user.get("role")!="admin":st.error("沒有管理員權限");return
     st.title("管理員後台")
-    tabs=st.tabs(["Dashboard","會員／黑名單","授權註冊審核","管理員信箱","流量審核","系統設定","稽核紀錄","資料備份"])
+    tabs=st.tabs(["Dashboard","會員／黑名單","授權註冊審核","管理員信箱","流量審核","IP管理","系統設定","稽核紀錄","資料備份"])
     with tabs[0]:
         st.info("管理員後台。")
     with tabs[1]:
@@ -161,9 +162,40 @@ def render():
                     ok,_=reject(admin_uid,rid);done+=1 if ok else 0
                 st.success(f"已拒絕 {done} 筆申請");st.rerun()
     with tabs[5]:
+        st.subheader("IP 管理")
+        c1,c2=st.columns([3,1])
+        ip_keyword=c1.text_input("搜尋 IP",key="admin_ip_search").strip()
+        ip_status=c2.selectbox("狀態",["all","normal","whitelist","greylist","blacklist"],key="admin_ip_status")
+        rows=admin_ip_rows(st.session_state.user["id"],ip_keyword,ip_status)
+        st.caption(f"目前列出 {len(rows)} 個 IP。請求速度為 RuiderCar 應用層 requests/min，並非實體網路 Mbps。")
+        for r in rows:
+            with st.expander(f'{r["ip"]}｜{r["status"]}｜{r["requests/min"]} req/min｜最後 {r["last_seen"]}'):
+                st.write(f'首次訪問：{r["first_seen"]}')
+                st.write(f'累計請求：{r["request_count"]}｜最高：{r["peak"]} requests/min')
+                if r["reason"]:st.warning(f'原因：{r["reason"]}')
+                if r["greylisted_until"]:st.caption(f'灰名單至：{r["greylisted_until"]}')
+                a,b,c=st.columns(3)
+                if a.button("加入黑名單",key=f'ip_black_{r["ip"]}',use_container_width=True):
+                    ok,msg=admin_set_ip_status(st.session_state.user["id"],r["ip"],"blacklist");(st.success if ok else st.error)(msg);st.rerun()
+                if b.button("加入白名單",key=f'ip_white_{r["ip"]}',use_container_width=True):
+                    ok,msg=admin_set_ip_status(st.session_state.user["id"],r["ip"],"whitelist");(st.success if ok else st.error)(msg);st.rerun()
+                if c.button("恢復一般",key=f'ip_normal_{r["ip"]}',use_container_width=True):
+                    ok,msg=admin_set_ip_status(st.session_state.user["id"],r["ip"],"normal");(st.success if ok else st.error)(msg);st.rerun()
+                hist=ip_history(st.session_state.user["id"],r["ip"],100)
+                if hist:st.dataframe(hist,use_container_width=True,hide_index=True)
+        name,data=export_ip_log_csv(st.session_state.user["id"])
+        st.download_button("下載 IP LOG (.csv)",data=data,file_name=name,mime="text/csv",use_container_width=True)
+    with tabs[6]:
         notice=st.session_state.pop("system_settings_notice",None)
         if notice:st.success(notice)
         s=settings()
+        st.subheader("IP / 資源管理")
+        ic1,ic2,ic3=st.columns(3)
+        ip_request_limit=ic1.number_input("每 IP 最大請求數／分鐘",min_value=10,max_value=100000,value=int(s.get("ip_request_limit_per_minute","180")),step=10)
+        active_ip_limit=ic2.number_input("同時 Active IP 上限",min_value=1,max_value=100000,value=int(s.get("active_ip_limit","50")),step=1)
+        ip_log_retention_days=ic3.number_input("IP LOG 保存天數",min_value=1,max_value=3650,value=int(s.get("ip_log_retention_days","7")),step=1)
+        st.caption("Active IP：最近 5 分鐘內有活動的 IP。超過請求門檻會進入灰名單 30 分鐘並撤銷該 IP 的登入 Session；白名單只豁免排隊限制。")
+        st.divider()
         account_limit=st.number_input("平台帳號數量上限",min_value=1,max_value=100000,value=int(s.get("account_limit","500")),step=10)
         st.caption("目前預設 500。此上限只限制一般註冊；授權註冊不受此上限影響，但必須經管理員批准後才能登入。")
         initial=st.number_input("新會員初始流量",min_value=0,value=int(s.get("initial_traffic","1000")))
@@ -192,17 +224,17 @@ def render():
         help_changelog=st.text_area("更新日誌（支援 Markdown）",value=s.get("help_changelog",""),height=220)
         help_guide=st.text_area("操作說明（支援 Markdown）",value=s.get("help_guide",""),height=260)
         if st.button("儲存系統設定",use_container_width=True):
-            values={"account_limit":account_limit,"initial_traffic":initial,"traffic_max":traffic_max,"traffic_min":traffic_min,"traffic_per_100k_month":traffic_per,"admin_email":email,"bank_name":bank,"bank_holder":holder,"transfer_account":account,"transfer_note":transfer_note,"home_hero_title":hero_title,"home_hero_subtitle":hero_subtitle,"home_hero_width":hero_width,"home_hero_height":hero_height,"home_hero_title_size":hero_title_size,"home_hero_subtitle_size":hero_subtitle_size,"help_changelog":help_changelog,"help_guide":help_guide}
+            values={"ip_request_limit_per_minute":ip_request_limit,"active_ip_limit":active_ip_limit,"ip_log_retention_days":ip_log_retention_days,"account_limit":account_limit,"initial_traffic":initial,"traffic_max":traffic_max,"traffic_min":traffic_min,"traffic_per_100k_month":traffic_per,"admin_email":email,"bank_name":bank,"bank_holder":holder,"transfer_account":account,"transfer_note":transfer_note,"home_hero_title":hero_title,"home_hero_subtitle":hero_subtitle,"home_hero_width":hero_width,"home_hero_height":hero_height,"home_hero_title_size":hero_title_size,"home_hero_subtitle_size":hero_subtitle_size,"help_changelog":help_changelog,"help_guide":help_guide}
             ok,msg=save_settings(st.session_state.user["id"],values)
             (st.success if ok else st.error)(msg)
             if ok:
                 st.session_state.system_settings_notice="✅ 更新日誌、操作說明與系統設定已成功寫入資料庫"
                 st.rerun()
-    with tabs[6]:
+    with tabs[7]:
         logs=admin_audit_logs(st.session_state.user["id"])
         if logs:st.dataframe(logs,use_container_width=True,hide_index=True)
         else:st.info("目前沒有管理員稽核紀錄。")
-    with tabs[7]:
+    with tabs[8]:
         st.warning("Cloud 正式環境請使用外部 PostgreSQL 與持久化物件儲存；本功能提供管理員離線備份。")
         name,data=make_backup(st.session_state.user["id"])
         st.download_button("備份到本地",data=data,file_name=name,mime="application/zip",use_container_width=True)

@@ -23,7 +23,10 @@ DEFAULTS={
     "home_hero_title_size":"26",
     "home_hero_subtitle_size":"16",
     "help_changelog":"## RuiderCar 更新日誌\n管理員可在系統設定中編輯此內容。",
-    "help_guide":"## 操作說明\n管理員可在系統設定中編輯此內容。"
+    "help_guide":"## 操作說明\n管理員可在系統設定中編輯此內容。",
+    "ip_request_limit_per_minute":"180",
+    "active_ip_limit":"50",
+    "ip_log_retention_days":"7"
 }
 def seed_settings():
     with SessionLocal() as db:

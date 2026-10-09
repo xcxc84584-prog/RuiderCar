@@ -39,7 +39,8 @@ def restore_browser_session():
         except Exception:pass
         st.session_state.pop("remember_cookie_token",None)
 def establish_browser_session(user,remember=False):
-    token=create_login_session(user["id"],remember=remember)
+    from backend.services.ip_service import client_ip_from_streamlit
+    token=create_login_session(user["id"],remember=remember,ip_address=client_ip_from_streamlit(st))
     st.session_state.user=user
     st.session_state.auth_token=token
     st.session_state.remember_device=remember

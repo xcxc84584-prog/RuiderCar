@@ -158,3 +158,25 @@ class AdminAuditLog(Base):
     target_id:Mapped[int|None]=mapped_column(Integer,nullable=True)
     detail:Mapped[str]=mapped_column(Text,default="")
     created_at:Mapped[datetime]=mapped_column(DateTime,default=datetime.utcnow,index=True)
+
+
+class IpAddressRecord(Base):
+    __tablename__="ip_address_records"
+    ip_address:Mapped[str]=mapped_column(String(64),primary_key=True)
+    status:Mapped[str]=mapped_column(String(20),default="normal",index=True)
+    first_seen:Mapped[datetime]=mapped_column(DateTime,default=datetime.utcnow)
+    last_seen:Mapped[datetime]=mapped_column(DateTime,default=datetime.utcnow,index=True)
+    queued_at:Mapped[datetime|None]=mapped_column(DateTime,nullable=True,index=True)
+    greylisted_until:Mapped[datetime|None]=mapped_column(DateTime,nullable=True,index=True)
+    status_reason:Mapped[str]=mapped_column(String(250),default="")
+    request_count:Mapped[int]=mapped_column(Integer,default=0)
+    peak_requests_per_minute:Mapped[int]=mapped_column(Integer,default=0)
+
+class IpActivityLog(Base):
+    __tablename__="ip_activity_logs"
+    id:Mapped[int]=mapped_column(primary_key=True)
+    ip_address:Mapped[str]=mapped_column(String(64),index=True)
+    user_id:Mapped[int|None]=mapped_column(Integer,nullable=True,index=True)
+    event:Mapped[str]=mapped_column(String(40),default="VISIT",index=True)
+    detail:Mapped[str]=mapped_column(String(250),default="")
+    created_at:Mapped[datetime]=mapped_column(DateTime,default=datetime.utcnow,index=True)
