@@ -1,12 +1,12 @@
 import streamlit as st
-from backend.services.image_service import image_source
+from backend.services.image_service import cover_source
 from backend.services.listing_service import admin_force_remove
 
 def vehicle_card(x,show_image=True):
     imgs=x.get("images") or []
     if show_image:
         if imgs:
-            source=image_source(imgs[0])
+            source=cover_source(imgs[0])
             if source is not None:st.image(source,width="stretch")
         else:
             icon="🚙" if x.get("product_type","vehicle")=="vehicle" else "📦"

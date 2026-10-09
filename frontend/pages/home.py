@@ -2,7 +2,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 import html,math
 from backend.services.admin_service import settings
-from backend.services.listing_service import public_catalog_bounds,list_public_page
+from backend.services.listing_service import public_catalog_bounds,list_public_page,prefetch_public_navigation
 from frontend.components.cards import vehicle_card
 from backend.services.message_service import unread_count
 PAGE_SIZE=9
@@ -72,6 +72,8 @@ def render():
                     if st.button("查看",key=f'home_text_view_{x["id"]}',width="stretch"):_open(x["id"])
     if return_lid:
         components.html(f'''<script>const id='listing-{int(return_lid)}';setTimeout(()=>{{const el=window.parent.document.getElementById(id);if(el) el.scrollIntoView({{behavior:'instant',block:'center'}});}},80);</script>''',height=0);st.session_state.pop("home_restore_listing",None)
+    # P1/P2 prefetch runs only after current-page UI has already been emitted to Streamlit.
+    prefetch_public_navigation(q,applied_min,applied_max,page,PAGE_SIZE,visible,pages)
     st.divider();st.caption(f"第 {page}/{pages} 頁｜每頁最多 {PAGE_SIZE} 件商品。資料庫只查詢目前頁面，封面按目前頁面載入。")
     prev_col,page_col,next_col=st.columns([1,2,1])
     with prev_col:

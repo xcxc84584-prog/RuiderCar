@@ -1,8 +1,12 @@
 from datetime import datetime,timedelta
+import time
 import math
 from sqlalchemy import select,func
 from backend.database import SessionLocal
 from backend.models.entities import Listing,ListingImage,Favorite,Appointment,Message,User,SystemSetting,TrafficTransaction
+_PREFETCH_TTL=20
+_prefetch_details={}
+_prefetch_pages={}
 def _setting(db,key,default):
     x=db.get(SystemSetting,key);return float(x.value) if x else default
 def list_public(search="",vehicles_only=False):
@@ -20,6 +24,10 @@ def public_catalog_bounds(search=""):
         return int(count or 0),int(min_price or 0),int(max_price or 0)
 def list_public_page(search="",min_price=None,max_price=None,page=1,page_size=9):
     page=max(1,int(page));page_size=max(1,min(int(page_size),60))
+    cache_key=(str(search or ""),min_price,max_price,page,page_size)
+    cached=_prefetch_pages.get(cache_key)
+    if cached and time.monotonic()-cached[0]<_PREFETCH_TTL:
+        return cached[1],cached[2]
     with SessionLocal() as db:
         filters=[Listing.status=="active"]
         if search:filters.append(Listing.title.ilike(f"%{search}%"))
@@ -42,13 +50,35 @@ def list_public_page(search="",min_price=None,max_price=None,page=1,page_size=9)
             d["images"]=[covers[x.id]] if x.id in covers else []
             d["seller_name"]=name or "未知賣家";d["seller_email"]=email or "";d["seller_phone"]=phone or "";d["seller_default_meeting_address"]=address or ""
             out.append(d)
+        _prefetch_pages[cache_key]=(time.monotonic(),out,total)
         return out,total
+def prefetch_public_navigation(search,min_price,max_price,current_page,page_size,current_rows=None,total_pages=None):
+    rows=current_rows or []
+    for row in rows:
+        lid=int(row.get("id",0) or 0)
+        if lid and lid not in _prefetch_details:
+            try:
+                detail=_get_listing_uncached(lid)
+                if detail:_prefetch_details[lid]=(time.monotonic(),detail)
+            except Exception:pass
+    for p in (int(current_page)-1,int(current_page)+1):
+        if p>=1 and (total_pages is None or p<=int(total_pages)):
+            try:list_public_page(search,min_price,max_price,p,page_size)
+            except Exception:pass
 def user_listings(uid):
     with SessionLocal() as db:
         return [row_to_dict(x) for x in db.scalars(select(Listing).where(Listing.seller_id==uid).order_by(Listing.created_at.desc())).all()]
-def get_listing(lid):
+def _get_listing_uncached(lid):
     with SessionLocal() as db:
         x=db.get(Listing,lid);return row_to_dict(x) if x else None
+def get_listing(lid):
+    try:lid=int(lid)
+    except:return None
+    cached=_prefetch_details.get(lid)
+    if cached and time.monotonic()-cached[0]<_PREFETCH_TTL:return cached[1]
+    x=_get_listing_uncached(lid)
+    if x:_prefetch_details[lid]=(time.monotonic(),x)
+    return x
 def _validate(data):
     if not str(data.get("title","")).strip():return False,"商品名稱不可空白"
     if int(data.get("price",0))<=0:return False,"價格必須大於 0"

@@ -1,6 +1,8 @@
 from pathlib import Path
 from uuid import uuid4
 from functools import lru_cache
+from io import BytesIO
+from PIL import Image,ImageOps
 from sqlalchemy import select
 from backend.database import SessionLocal,PROJECT_ROOT
 from backend.models.entities import Listing,ListingImage
@@ -11,6 +13,28 @@ ALLOWED_EXT={".jpg",".jpeg",".png",".webp"}
 MIME={".jpg":"image/jpeg",".jpeg":"image/jpeg",".png":"image/png",".webp":"image/webp"}
 MAX_IMAGES=10
 MAX_IMAGE_BYTES=5*1024*1024
+MAX_IMAGE_PIXELS=24_000_000
+DETAIL_MAX_EDGE=1600
+DETAIL_WEBP_QUALITY=82
+
+def _compress_upload(data):
+    try:
+        with Image.open(BytesIO(data)) as im:
+            im.verify()
+        with Image.open(BytesIO(data)) as im:
+            im=ImageOps.exif_transpose(im)
+            if im.width*im.height>MAX_IMAGE_PIXELS:
+                return None,"圖片解析度過高"
+            if im.mode not in ("RGB","RGBA"):
+                im=im.convert("RGBA" if "A" in im.getbands() else "RGB")
+            im.thumbnail((DETAIL_MAX_EDGE,DETAIL_MAX_EDGE),Image.Resampling.LANCZOS)
+            if im.mode=="RGBA":
+                bg=Image.new("RGB",im.size,(255,255,255));bg.paste(im,mask=im.getchannel("A"));im=bg
+            out=BytesIO();im.save(out,format="WEBP",quality=DETAIL_WEBP_QUALITY,method=4,optimize=True)
+            return out.getvalue(),None
+    except Exception:
+        return None,"圖片內容無法解析或格式不正確"
+
 def _ext(name):
     x=Path(name or "").suffix.lower()
     return x if x in ALLOWED_EXT else None
@@ -32,7 +56,9 @@ def add_uploaded_images(uid,listing_id,uploads,overwrite_oldest=False):
             if not ext:return False,"只允許 JPG、JPEG、PNG、WEBP"
             data=up.getvalue()
             if len(data)>MAX_IMAGE_BYTES:return False,"單張照片不可超過 5 MB"
-            prepared.append((ext,data))
+            compressed,error=_compress_upload(data)
+            if error:return False,error
+            prepared.append((".webp",compressed))
         incoming=sum(len(data) for _,data in prepared)
         fits,quota=storage_precheck(uid,incoming)
         if not fits:
@@ -47,7 +73,7 @@ def add_uploaded_images(uid,listing_id,uploads,overwrite_oldest=False):
             db.add(ListingImage(listing_id=listing_id,file_path="",image_data=data,mime_type=MIME[ext],sort_order=order))
             order+=1
         db.commit()
-        return True,f"已新增 {len(uploads)} 張照片；照片已保存至持久化資料庫"
+        return True,f"已新增 {len(uploads)} 張照片；圖片已壓縮為 WEBP 並保存至持久化資料庫"
 def delete_image(uid,image_id):
     with SessionLocal() as db:
         img=db.get(ListingImage,image_id)
@@ -80,6 +106,25 @@ def _cached_image_data(image_id):
         row=db.get(ListingImage,image_id)
         if row and row.image_data:return row.image_data
         return None
+
+@lru_cache(maxsize=256)
+def _cached_cover_data(image_id):
+    data=_cached_image_data(int(image_id))
+    if not data:return None
+    try:
+        with Image.open(BytesIO(data)) as im:
+            im=ImageOps.exif_transpose(im).convert("RGB")
+            im.thumbnail((640,640),Image.Resampling.LANCZOS)
+            out=BytesIO();im.save(out,format="WEBP",quality=72,method=3,optimize=True)
+            return out.getvalue()
+    except Exception:return data
+def cover_source(img):
+    image_id=img.get("id")
+    if image_id:
+        data=_cached_cover_data(int(image_id))
+        if data:return data
+    return image_source(img)
+
 def image_source(img):
     data=img.get("image_data")
     if data:return data

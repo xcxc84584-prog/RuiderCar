@@ -1,4 +1,5 @@
 import streamlit as st
+import streamlit.components.v1 as components
 from backend.services.admin_service import settings,save_setting,save_settings,users_for_admin,blacklist_user,unblacklist_user,permanently_delete_user,bulk_blacklist_users,bulk_unblacklist_users,impersonate_user,pending_authorized_registrations,review_authorized_registration,admin_audit_logs
 from backend.services.message_service import admin_messages,reply_admin,set_admin_message_status,delete_admin_messages,bulk_admin_message_status
 from backend.services.traffic_service import pending,approve,reject
@@ -6,12 +7,19 @@ from backend.services.backup_service import make_backup
 from backend.services.ip_service import admin_ip_rows,admin_set_ip_status,ip_history,export_ip_log_csv,delete_ip_log,delete_ip_logs_for_ip,clear_ip_logs,greylist_history_ips,delete_greylist_history,ip_diagnostics,client_ip_from_streamlit,admin_set_ip_request_limit,admin_delete_ip_records,publish_global_resource_limits
 from backend.services.storage_service import admin_set_account_storage_limit
 
+def _keep_ip_tab():
+    st.session_state.admin_active_tab="IP管理"
 def render():
     if st.session_state.user.get("role")!="admin":st.error("沒有管理員權限");return
     st.title("管理員後台")
     tab_labels=["Dashboard","會員／黑名單","授權註冊審核","管理員信箱","流量審核","IP管理","系統設定","稽核紀錄","資料備份"]
     try:tabs=st.tabs(tab_labels,default=st.session_state.get("admin_active_tab","Dashboard"))
-    except TypeError:tabs=st.tabs(tab_labels)
+    except TypeError:
+        tabs=st.tabs(tab_labels)
+        active=st.session_state.get("admin_active_tab","Dashboard")
+        if active!="Dashboard":
+            safe=active.replace("\\","\\\\").replace("'","\\'")
+            components.html(f"""<script>setTimeout(()=>{{const bs=[...window.parent.document.querySelectorAll('button[data-baseweb=tab]')];const b=bs.find(x=>x.innerText.trim()==='{safe}');if(b)b.click();}},40);</script>""",height=0)
     with tabs[0]:
         st.info("管理員後台。")
     with tabs[1]:
@@ -219,7 +227,7 @@ def render():
                     bar=st.progress(35,text="正在更新 IP 狀態…");ok,msg=admin_set_ip_status(st.session_state.user["id"],r["ip"],"whitelist");bar.progress(100,text="更新完成");st.session_state.ip_admin_notice=msg;st.session_state.admin_active_tab="IP管理";st.rerun()
                 if c.button("恢復一般",key=f'ip_normal_{r["ip"]}',width="stretch"):
                     bar=st.progress(35,text="正在更新 IP 狀態…");ok,msg=admin_set_ip_status(st.session_state.user["id"],r["ip"],"normal");bar.progress(100,text="更新完成");st.session_state.ip_admin_notice=msg;st.session_state.admin_active_tab="IP管理";st.rerun()
-                load_hist=st.toggle("載入完整活動歷史",value=False,key=f'load_ip_history_{r["ip"]}')
+                load_hist=st.toggle("載入完整活動歷史",value=False,key=f'load_ip_history_{r["ip"]}',on_change=_keep_ip_tab)
                 if load_hist:
                     with st.spinner("載入活動歷史…"):
                         hist=ip_history(st.session_state.user["id"],r["ip"],100)
