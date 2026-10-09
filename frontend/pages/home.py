@@ -23,10 +23,9 @@ def render():
     cars=list_public(q)
     if not cars:st.info("目前沒有符合條件的商品。");return
     pages=max(1,math.ceil(len(cars)/PAGE_SIZE))
-    page=st.number_input("頁面",min_value=1,max_value=pages,value=min(int(st.session_state.get("home_page",1)),pages),step=1)
-    st.session_state.home_page=int(page)
-    start=(int(page)-1)*PAGE_SIZE;visible=cars[start:start+PAGE_SIZE]
-    st.caption(f"第 {page}/{pages} 頁｜每頁最多 {PAGE_SIZE} 件商品。圖片只讀取目前頁面，避免一次載入全部商品照片。")
+    page=max(1,min(int(st.session_state.get("home_page",1)),pages))
+    st.session_state.home_page=page
+    start=(page-1)*PAGE_SIZE;visible=cars[start:start+PAGE_SIZE]
     if show_images:
         cols=st.columns(3)
         for i,x in enumerate(visible):
@@ -44,3 +43,17 @@ def render():
                     if x.get("summary"):st.write(x["summary"])
                 with c2:
                     if st.button("查看",key=f'home_text_view_{x["id"]}',use_container_width=True):_open(x["id"])
+
+    st.divider()
+    st.caption(f"第 {page}/{pages} 頁｜每頁最多 {PAGE_SIZE} 件商品。僅載入目前頁面的商品封面。")
+    prev_col,page_col,next_col=st.columns([1,2,1])
+    with prev_col:
+        if st.button("← 上一頁",disabled=page<=1,use_container_width=True,key="home_prev_page"):
+            st.session_state.home_page=page-1;st.rerun()
+    with page_col:
+        selected_page=st.selectbox("切換頁面",list(range(1,pages+1)),index=page-1,key="home_bottom_page",label_visibility="collapsed")
+        if selected_page!=page:
+            st.session_state.home_page=selected_page;st.rerun()
+    with next_col:
+        if st.button("下一頁 →",disabled=page>=pages,use_container_width=True,key="home_next_page"):
+            st.session_state.home_page=page+1;st.rerun()
