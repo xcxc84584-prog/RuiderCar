@@ -73,3 +73,29 @@ def mark_device_registered():
         time.sleep(0.3)
     except Exception:
         pass
+
+GUEST_FAVORITES_COOKIE="ruidercar_guest_favorites"
+def guest_favorite_ids():
+    try:
+        raw=_controller().get(GUEST_FAVORITES_COOKIE)
+        if isinstance(raw,dict):raw=raw.get("value")
+        if not raw:return []
+        return sorted({int(x) for x in str(raw).split(",") if str(x).isdigit()})[:200]
+    except Exception:return []
+def set_guest_favorite_ids(ids):
+    clean=sorted({int(x) for x in ids if str(x).isdigit()})[:200]
+    try:
+        expiry=datetime.now()+timedelta(days=365)
+        _controller().set(GUEST_FAVORITES_COOKIE,",".join(map(str,clean)),path="/",expires=expiry,max_age=365*24*60*60,secure=True,same_site="lax")
+        time.sleep(0.2)
+    except Exception:pass
+    return clean
+def toggle_guest_favorite(lid):
+    ids=guest_favorite_ids();lid=int(lid)
+    if lid in ids:ids.remove(lid);set_guest_favorite_ids(ids);return False
+    ids.append(lid);set_guest_favorite_ids(ids);return True
+def merge_guest_favorites(uid):
+    from backend.services.favorite_service import add_favorites
+    ids=guest_favorite_ids()
+    if ids:add_favorites(uid,ids);set_guest_favorite_ids([])
+    return len(ids)

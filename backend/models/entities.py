@@ -21,6 +21,10 @@ class User(Base):
     blacklist_reason:Mapped[str]=mapped_column(Text,default="")
     blacklisted_at:Mapped[datetime|None]=mapped_column(DateTime,nullable=True)
     default_meeting_address:Mapped[str]=mapped_column(String(250),default="")
+    registration_type:Mapped[str]=mapped_column(String(20),default="normal",index=True)
+    account_status:Mapped[str]=mapped_column(String(30),default="active",index=True)
+    failed_login_attempts:Mapped[int]=mapped_column(Integer,default=0)
+    login_locked_until:Mapped[datetime|None]=mapped_column(DateTime,nullable=True)
     created_at:Mapped[datetime]=mapped_column(DateTime,default=datetime.utcnow)
 
 
@@ -142,3 +146,13 @@ class RegistrationRisk(Base):
     reason:Mapped[str]=mapped_column(String(250))
     status:Mapped[str]=mapped_column(String(30),default="待審核")
     created_at:Mapped[datetime]=mapped_column(DateTime,default=datetime.utcnow)
+
+class AdminAuditLog(Base):
+    __tablename__="admin_audit_logs"
+    id:Mapped[int]=mapped_column(primary_key=True)
+    admin_id:Mapped[int]=mapped_column(ForeignKey("users.id"),index=True)
+    action:Mapped[str]=mapped_column(String(80),index=True)
+    target_type:Mapped[str]=mapped_column(String(40),default="")
+    target_id:Mapped[int|None]=mapped_column(Integer,nullable=True)
+    detail:Mapped[str]=mapped_column(Text,default="")
+    created_at:Mapped[datetime]=mapped_column(DateTime,default=datetime.utcnow,index=True)

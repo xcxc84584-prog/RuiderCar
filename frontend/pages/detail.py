@@ -5,6 +5,7 @@ from backend.services.appointment_service import create
 from backend.services.message_service import send
 from backend.services.image_service import image_source
 from backend.services.favorite_service import is_favorite,toggle_favorite
+from frontend.auth_session import guest_favorite_ids,toggle_guest_favorite
 
 def render():
     lid=st.session_state.get("selected_listing")
@@ -20,6 +21,10 @@ def render():
         if st.button("★ 已收藏｜取消收藏" if fav else "☆ 收藏商品",key=f'favorite_detail_{x["id"]}'):
             ok,msg,_=toggle_favorite(current["id"],x["id"]);(st.success if ok else st.error)(msg)
             if ok:st.rerun()
+    else:
+        fav=x["id"] in guest_favorite_ids()
+        if st.button("★ 遊客收藏｜取消收藏" if fav else "☆ 收藏商品",key=f'guest_favorite_detail_{x["id"]}'):
+            added=toggle_guest_favorite(x["id"]);st.success("已加入遊客收藏" if added else "已取消遊客收藏");st.rerun()
     top_image,top_info=st.columns([1.05,1.35],gap="large")
     with top_image:
         if imgs:

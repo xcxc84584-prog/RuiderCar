@@ -1,36 +1,40 @@
 import streamlit as st
 from backend.services.auth_service import login,register
 from backend.services.account_service import close_account,update_account_info
-from frontend.auth_session import establish_browser_session,logout_browser_session,device_already_registered,mark_device_registered
+from frontend.auth_session import establish_browser_session,logout_browser_session,device_already_registered,mark_device_registered,merge_guest_favorites
 def render_login():
     st.title("登入")
     e=st.text_input("Email");p=st.text_input("密碼",type="password")
     st.caption("登入後此裝置將自動保持登入狀態 30 天。")
     if st.button("登入",use_container_width=True):
-        u=login(e,p)
+        u,msg=login(e,p)
         if u:
             try:
-                establish_browser_session(u,remember=True);st.session_state.page="首頁";st.rerun()
+                establish_browser_session(u,remember=True);merge_guest_favorites(u["id"]);st.session_state.page="首頁";st.rerun()
             except Exception:
                 st.warning("一個裝置不可同時保持兩個帳號的登入狀態，請先登出目前帳號後再登入。")
                 return
-        st.error("帳號或密碼錯誤")
+        st.error(msg)
 def render_register():
     st.title("註冊")
+    registration_label=st.radio("註冊方式",["一般註冊","授權註冊"],horizontal=True)
+    registration_type="normal" if registration_label=="一般註冊" else "authorized"
+    if registration_type=="normal":st.caption("一般註冊受到網站帳號數量上限限制，建立成功後可直接登入。")
+    else:st.info("授權註冊不受一般帳號數量上限限制，但建立後必須等待管理員批准，批准前無法登入。")
     n=st.text_input("名稱");e=st.text_input("Email");ph=st.text_input("手機號碼");p=st.text_input("密碼",type="password")
-    if st.button("建立帳號",use_container_width=True):
+    if st.button("提交註冊",use_container_width=True):
         if device_already_registered():
             st.warning("一個裝置僅可註冊一個帳號。")
             return
-        ok,msg=register(n,e,ph,p)
+        ok,msg=register(n,e,ph,p,registration_type)
         if ok:
-            mark_device_registered();st.success(msg);st.info("帳號已建立，可直接登入。")
+            mark_device_registered();st.success(msg)
+            if registration_type=="normal":st.info("帳號已建立，可直接登入。")
+            else:st.info("請等待管理員審核；批准後才可登入。")
         else:
-            # 不向一般使用者顯示風險偵測或系統內部錯誤細節
             if "手機號碼已綁定" in str(msg):st.warning("一個裝置或聯絡資料不可重複註冊帳號。")
             else:st.error(msg)
     st.divider()
-
 def render_settings():
     u=st.session_state.get("user")
     if not u:

@@ -31,6 +31,8 @@ with st.sidebar:
             admin_origin=st.session_state.impersonator_admin
             st.warning(f'管理員代理登入：#{u["id"]} {u["name"]}')
             if st.button("返回管理員帳號",use_container_width=True,key="return_admin"):
+                from backend.services.admin_service import log_impersonation_end
+                log_impersonation_end(admin_origin["id"],u["id"])
                 st.session_state.user=admin_origin
                 st.session_state.pop("impersonator_admin",None)
                 st.session_state.page="管理員後台"
@@ -46,6 +48,7 @@ with st.sidebar:
             logout_browser_session();st.session_state.page="首頁";st.rerun()
     else:
         if st.button("首頁",use_container_width=True):st.session_state.page="首頁";st.rerun()
+        if st.button("我的收藏",use_container_width=True):st.session_state.page="我的收藏";st.rerun()
         if st.button("登入",use_container_width=True):st.session_state.page="登入";st.rerun()
         if st.button("註冊",use_container_width=True):st.session_state.page="註冊";st.rerun()
         if st.button("輔助與說明",use_container_width=True):st.session_state.page="輔助與說明";st.rerun()
